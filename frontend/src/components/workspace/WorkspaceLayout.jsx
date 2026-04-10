@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import ResumeEditor from './ResumeEditor'
 import { validateJobDescription } from '../../utils/validators'
-import { downloadReport } from '../../services/api'
+import { downloadReport, extractJD } from '../../services/api'
 import { useResumeParser } from '../../hooks/useResumeParser'
 
 // ── Mebble wordmark (reused from upload screen) ───────────────────────────────
@@ -50,51 +50,75 @@ const cardLabel = { fontSize: '14px', fontWeight: 600, color: '#727272', letterS
 
 // ── Keyword pill ──────────────────────────────────────────────────────────────
 function Pill({ word, variant }) {
-  const colors = {
-    matched: { bg: '#ECFDF5', color: '#059669', border: '#D1FAE5' },
-    missing: { bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' },
-  }
-  const c = colors[variant]
+  const color = variant === 'matched' ? '#01B747' : '#F70407'
   return (
     <span style={{
-      display: 'inline-block', padding: '2px 10px', borderRadius: '9999px',
-      fontSize: '12px', fontWeight: 500, letterSpacing: '-0.01em',
-      backgroundColor: c.bg, color: c.color, border: `1px solid ${c.border}`,
+      display: 'inline-block', padding: '4px 8px', borderRadius: '999px',
+      fontSize: '12px', fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1,
+      backgroundColor: '#F9F9FB', color, border: '1px solid #F1F1F1',
     }}>
       {word}
     </span>
   )
 }
 
-// ── Score arc gauge ───────────────────────────────────────────────────────────
-function ScoreGauge({ score }) {
-  const r = 40, cx = 60, cy = 55, strokeW = 8
-  const circumference = Math.PI * r  // half-circle
-  const progress = (score / 100) * circumference
-  const color = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444'
-  return (
-    <svg width="120" height="80" viewBox="0 0 120 80">
-      <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
-        fill="none" stroke="#E7E7E7" strokeWidth={strokeW} strokeLinecap="round" />
-      <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
-        fill="none" stroke={color} strokeWidth={strokeW} strokeLinecap="round"
-        strokeDasharray={`${progress} ${circumference}`} />
-      <text x={cx} y={cy - 6} textAnchor="middle" fontSize="20" fontWeight="700"
-        fill="#020202" fontFamily="Geist, system-ui, sans-serif">{score}%</text>
-    </svg>
-  )
-}
+// ── ATS Score arc gauge ───────────────────────────────────────────────────────
+function ArcGauge({ score }) {
+  // Semi-circle arc: centre (110,110), radius 80, stroke 14
+  const cx = 110, cy = 110, r = 80, sw = 14
+  const circumference = Math.PI * r          // half-circle arc length ≈ 251
+  const filled = (score / 100) * circumference
+  const category = score >= 90 ? 'Excellent' : score >= 75 ? 'Great' : score >= 50 ? 'Good' : 'Poor'
+  const categoryColor = score >= 75 ? '#01B747' : score >= 50 ? '#F59E0B' : '#F70407'
 
-// ── Category badge color ──────────────────────────────────────────────────────
-function categoryColor(cat) {
-  return { Excellent: '#10B981', Great: '#10B981', Good: '#F59E0B', Poor: '#EF4444' }[cat] || '#727272'
+  // Arc path: start at left (180°), sweep clockwise to right (0°)
+  const arcPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
+      <svg width="220" height="120" viewBox="0 0 220 120" style={{ overflow: 'visible' }}>
+        {/* Track */}
+        <path d={arcPath} fill="none" stroke="#FFE8D6" strokeWidth={sw} strokeLinecap="round" />
+        {/* Filled arc */}
+        <path
+          d={arcPath}
+          fill="none"
+          stroke="#FF7512"
+          strokeWidth={sw}
+          strokeLinecap="round"
+          strokeDasharray={`${filled} ${circumference}`}
+        />
+        {/* Score label */}
+        <text
+          x={cx} y={cy - 8}
+          textAnchor="middle"
+          fontSize="32" fontWeight="800"
+          fill="#FF7512"
+          fontFamily="Geist, system-ui, sans-serif"
+          letterSpacing="-1"
+        >
+          {score}%
+        </text>
+      </svg>
+      <span style={{
+        fontSize: '13px', fontWeight: 600, letterSpacing: '-0.02em',
+        color: categoryColor, fontFamily: "'Geist', system-ui, sans-serif",
+        marginTop: '-8px',
+      }}>
+        {category}
+      </span>
+    </div>
+  )
 }
 
 export default function WorkspaceLayout({ file, result, loading, error, onAnalyze, onReset }) {
   const [jobDescription, setJobDescription] = useState('')
+  const [submittedJD, setSubmittedJD] = useState('')
   const [jdError, setJdError] = useState(null)
+  const [jdFileLoading, setJdFileLoading] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [activeTab, setActiveTab] = useState('optimization')
+  const jdFileRef = useRef(null)
   const { sections, loading: parseLoading, error: parseError, updateSection } = useResumeParser(file)
 
   const fileName = file?.name?.replace(/\.pdf$/i, '') || 'Resume'
@@ -103,7 +127,28 @@ export default function WorkspaceLayout({ file, result, loading, error, onAnalyz
     const err = validateJobDescription(jobDescription)
     if (err) { setJdError(err); return }
     setJdError(null)
+    setSubmittedJD(jobDescription)
     onAnalyze(file, jobDescription)
+  }
+
+  async function handleJDFile(e) {
+    const picked = e.target.files?.[0]
+    e.target.value = ''          // reset so same file can be re-picked
+    if (!picked) return
+    setJdFileLoading(true)
+    setJdError(null)
+    try {
+      const res = await extractJD(picked)
+      if (res.success) {
+        setJobDescription(res.text)
+      } else {
+        setJdError(res.error || 'Could not extract text from file.')
+      }
+    } catch {
+      setJdError('Could not read file. Please try PDF or DOCX.')
+    } finally {
+      setJdFileLoading(false)
+    }
   }
 
   async function handleDownload() {
@@ -133,22 +178,35 @@ export default function WorkspaceLayout({ file, result, loading, error, onAnalyz
         display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
         gap: '32px', padding: '32px', overflow: 'hidden',
         justifyContent: 'flex-start',
+        position: 'relative',
       }}>
         <MebbleLogo />
 
-        {/* Spacer pushes instructions + JD card to bottom */}
-        <div style={{ flex: 1 }} />
-
-        {/* Instructions */}
-        <p style={{
-          fontSize: '13px', fontWeight: 500, color: '#727272',
-          letterSpacing: '-0.02em', lineHeight: '160%',
-          alignSelf: 'stretch', textAlign: 'left',
+        {/* Middle content: scrollable JD text OR instructions */}
+        <div style={{
+          flex: 1, alignSelf: 'stretch',
+          overflowY: 'auto', overflowX: 'hidden',
+          display: 'flex', flexDirection: 'column',
         }}>
-          Your uploaded resume is currently in display. To get a well optimized Resume for your application, kindly paste or send the job requirements.
-        </p>
+          {submittedJD ? (
+            <p style={{
+              fontSize: '13px', fontWeight: 500, color: '#727272',
+              letterSpacing: '-0.02em', lineHeight: 1.6,
+              whiteSpace: 'pre-wrap', margin: 0,
+            }}>
+              {submittedJD}
+            </p>
+          ) : (
+            <p style={{
+              fontSize: '13px', fontWeight: 500, color: '#727272',
+              letterSpacing: '-0.02em', lineHeight: 1.6, margin: 0,
+            }}>
+              Your uploaded resume is currently in display. To get a well optimized Resume for your application, kindly paste or send the job requirements.
+            </p>
+          )}
+        </div>
 
-        {/* JD input card */}
+        {/* JD input card — always at bottom */}
         <div style={{
           alignSelf: 'stretch',
           backgroundColor: '#FFFFFF',
@@ -157,6 +215,7 @@ export default function WorkspaceLayout({ file, result, loading, error, onAnalyz
           padding: '12px',
           boxShadow: '0px 6px 9px 22px #ECECEC33',
           display: 'flex', flexDirection: 'column', gap: '16px',
+          flexShrink: 0,
         }}>
           <textarea
             value={jobDescription}
@@ -164,31 +223,48 @@ export default function WorkspaceLayout({ file, result, loading, error, onAnalyz
             placeholder="Paste in Job Description"
             rows={3}
             style={{
-              fontSize: '14px', fontWeight: 500, color: '#020202',
-              letterSpacing: '-0.02em', lineHeight: '160%',
+              fontSize: '13px', fontWeight: 500, color: '#020202',
+              letterSpacing: '-0.02em', lineHeight: 1.6,
               border: 'none', outline: 'none', resize: 'none',
               backgroundColor: 'transparent', width: '100%',
               fontFamily: 'inherit',
-              '::placeholder': { color: '#767678' },
             }}
           />
           {jdError && (
             <p style={{ fontSize: '12px', color: '#EF4444', margin: 0 }}>{jdError}</p>
           )}
+          {/* Hidden file input for JD upload */}
+          <input
+            ref={jdFileRef}
+            type="file"
+            accept=".pdf,.docx,.txt,.md"
+            style={{ display: 'none' }}
+            onChange={handleJDFile}
+          />
+
           {/* Icon row */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button
-              onClick={onReset}
-              title="Upload new resume"
+              onClick={() => jdFileRef.current?.click()}
+              title="Upload JD from file (PDF, DOCX, TXT)"
+              disabled={jdFileLoading}
               style={{
                 width: '28px', height: '28px', borderRadius: '9999px',
-                backgroundColor: '#F0F0F0', border: 'none', cursor: 'pointer',
+                backgroundColor: '#F0F0F0', border: 'none',
+                cursor: jdFileLoading ? 'wait' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: jdFileLoading ? 0.6 : 1,
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M12 5v14M5 12h14" stroke="#727272" strokeWidth="2" strokeLinecap="round" />
-              </svg>
+              {jdFileLoading ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
+                  <circle cx="12" cy="12" r="10" stroke="#727272" strokeWidth="2" strokeDasharray="30 10" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 5v14M5 12h14" stroke="#727272" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              )}
             </button>
             <button
               onClick={handleAnalyze}
@@ -237,16 +313,32 @@ export default function WorkspaceLayout({ file, result, loading, error, onAnalyz
                 {fileName}
               </span>
             </div>
-            {/* Orange dot / indicator */}
-            <div style={{
-              width: '39px', height: '39px', flexShrink: 0,
-              backgroundColor: '#FF7512', borderRadius: '8px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M12 5v14M5 12h14" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" />
+            {/* Upload new resume — click the indicator dot */}
+            <button
+              onClick={onReset}
+              title="Upload new resume"
+              style={{
+                width: '39px', flexShrink: 0, alignSelf: 'stretch',
+                backgroundColor: '#F7F7F7', borderRadius: '8px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '8px', border: 'none', cursor: 'pointer',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+                <defs>
+                  <mask id="dot-mask" style={{ maskType: 'luminance' }} maskUnits="userSpaceOnUse" x="0" y="0" width="14" height="14">
+                    <path d="M6.999 12.834C10.221 12.834 12.833 10.222 12.833 7C12.833 3.779 10.221 1.167 6.999 1.167C3.778 1.167 1.166 3.779 1.166 7C1.166 10.222 3.778 12.834 6.999 12.834Z" fill="#fff" stroke="#fff" strokeWidth="1.167" strokeLinejoin="round"/>
+                    <path d="M6.999 4.667V9.334M4.666 7H9.333" stroke="#000" strokeWidth="1.167" strokeLinecap="round" strokeLinejoin="round"/>
+                  </mask>
+                  <clipPath id="dot-clip"><rect width="14" height="14" fill="#fff"/></clipPath>
+                </defs>
+                <g clipPath="url(#dot-clip)">
+                  <g mask="url(#dot-mask)">
+                    <path d="M0 0H14V14H0V0Z" fill="#FF7512" />
+                  </g>
+                </g>
               </svg>
-            </div>
+            </button>
           </div>
 
           {/* Spacer */}
@@ -351,24 +443,27 @@ export default function WorkspaceLayout({ file, result, loading, error, onAnalyz
               padding: '16px', display: 'flex', flexDirection: 'column',
               alignItems: 'flex-end', gap: '32px', flex: '0 0 auto',
             }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignSelf: 'stretch', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ alignSelf: 'stretch' }}>
-                  <span style={cardLabel}>Keyword Bank</span>
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignSelf: 'stretch' }}>
+                <span style={cardLabel}>Keyword Bank</span>
                 {result ? (
-                  <div style={{ alignSelf: 'stretch', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', alignSelf: 'stretch' }}>
+                    {/* Found keywords */}
                     {result.matched_keywords?.length > 0 && (
-                      <div>
-                        <p style={{ fontSize: '11px', color: '#A0A0A0', fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Matched</p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 500, color: '#989898', letterSpacing: '-0.02em', lineHeight: 1.6 }}>Found Keywords</span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                           {result.matched_keywords.map(k => <Pill key={k} word={k} variant="matched" />)}
                         </div>
                       </div>
                     )}
+                    {/* Missing keywords */}
                     {result.missing_keywords?.length > 0 && (
-                      <div>
-                        <p style={{ fontSize: '11px', color: '#A0A0A0', fontWeight: 500, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Missing</p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 500, color: '#989898', letterSpacing: '-0.02em', lineHeight: 1.6 }}>Missing Keywords</span>
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: '#028FF4', letterSpacing: '-0.01em', cursor: 'pointer' }}>Add All</span>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                           {result.missing_keywords.map(k => <Pill key={k} word={k} variant="missing" />)}
                         </div>
                       </div>
@@ -384,23 +479,12 @@ export default function WorkspaceLayout({ file, result, loading, error, onAnalyz
             <div style={{
               backgroundColor: '#F9F9FB', borderRadius: '16px',
               padding: '16px', display: 'flex', flexDirection: 'column',
-              alignItems: 'flex-end', gap: '32px', flex: '0 0 auto',
+              alignItems: 'flex-start', gap: '16px', flex: '0 0 auto',
             }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignSelf: 'stretch', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ alignSelf: 'stretch' }}>
-                  <span style={cardLabel}>ATS Score</span>
-                </div>
+              <span style={cardLabel}>ATS Score</span>
+              <div style={{ alignSelf: 'stretch', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
                 {result ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    <ScoreGauge score={result.ats_score} />
-                    <span style={{
-                      fontSize: '13px', fontWeight: 600,
-                      color: categoryColor(result.score_category),
-                      letterSpacing: '-0.02em',
-                    }}>
-                      {result.score_category}
-                    </span>
-                  </div>
+                  <ArcGauge score={result.ats_score} />
                 ) : (
                   <ATSScorePlaceholder />
                 )}

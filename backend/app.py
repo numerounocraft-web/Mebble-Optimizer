@@ -48,6 +48,49 @@ def parse_resume():
     return jsonify({'success': True, 'sections': sections, 'raw_text': text})
 
 
+@app.post('/api/extract-jd')
+def extract_jd():
+    """Extract plain text from an uploaded JD file (PDF, DOCX, or TXT)."""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'File is required'}), 400
+
+    file = request.files['file']
+    filename = (file.filename or '').lower()
+
+    try:
+        if filename.endswith('.pdf'):
+            file_bytes = file.read()
+            text = resume_parser.extract_text(file_bytes)
+
+        elif filename.endswith('.docx'):
+            import docx
+            import io as _io
+            doc = docx.Document(_io.BytesIO(file.read()))
+            text = '\n'.join(p.text for p in doc.paragraphs if p.text.strip())
+
+        elif filename.endswith('.doc'):
+            return jsonify({'success': False, 'error': 'Legacy .doc files are not supported. Please save as .docx or PDF.'}), 400
+
+        elif filename.endswith('.txt') or filename.endswith('.md'):
+            text = file.read().decode('utf-8', errors='ignore')
+
+        elif filename.split('.')[-1] in ('jpg', 'jpeg', 'png', 'webp', 'bmp'):
+            return jsonify({'success': False, 'error': 'Image extraction is not yet supported. Please paste the text or upload a PDF/DOCX.'}), 400
+
+        else:
+            # Attempt raw text decode
+            text = file.read().decode('utf-8', errors='ignore')
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': 'Could not read file. Please try PDF or DOCX.'}), 500
+
+    text = text.strip()
+    if not text:
+        return jsonify({'success': False, 'error': 'No text could be extracted from this file.'}), 400
+
+    return jsonify({'success': True, 'text': text})
+
+
 @app.post('/api/optimize-section')
 def optimize_section():
     """Optimize a single resume section based on missing keywords."""

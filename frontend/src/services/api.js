@@ -22,6 +22,15 @@ export async function parseResume(file) {
   return response.data
 }
 
+export async function extractJD(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await axios.post(`${BASE_URL}/extract-jd`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
 export async function optimizeSection({ sectionType, content, missingKeywords, domain }) {
   const response = await axios.post(`${BASE_URL}/optimize-section`, {
     section_type: sectionType,

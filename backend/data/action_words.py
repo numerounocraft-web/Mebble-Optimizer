@@ -1,0 +1,41 @@
+# Strong action words mapped to suggested stronger alternatives
+ACTION_WORDS = {
+    'managed': ['spearheaded', 'orchestrated', 'championed', 'directed'],
+    'led': ['directed', 'guided', 'mentored', 'steered'],
+    'created': ['established', 'pioneered', 'originated', 'architected'],
+    'helped': ['facilitated', 'enabled', 'empowered', 'supported'],
+    'worked': ['collaborated', 'partnered', 'engaged', 'contributed'],
+    'did': ['executed', 'delivered', 'accomplished', 'completed'],
+    'made': ['developed', 'produced', 'generated', 'built'],
+    'used': ['leveraged', 'utilized', 'applied', 'deployed'],
+    'improved': ['optimized', 'enhanced', 'accelerated', 'transformed'],
+    'increased': ['amplified', 'scaled', 'maximized', 'expanded'],
+    'reduced': ['minimized', 'streamlined', 'eliminated', 'cut'],
+    'handled': ['managed', 'oversaw', 'administered', 'coordinated'],
+    'responsible': ['owned', 'led', 'oversaw', 'directed'],
+    'assisted': ['supported', 'facilitated', 'contributed', 'aided'],
+    'analyzed': ['evaluated', 'assessed', 'investigated', 'examined'],
+    'designed': ['architected', 'engineered', 'conceptualized', 'devised'],
+    'developed': ['built', 'engineered', 'implemented', 'crafted'],
+    'implemented': ['deployed', 'launched', 'integrated', 'executed'],
+    'collaborated': ['partnered', 'coordinated', 'liaised', 'aligned'],
+    'communicated': ['presented', 'articulated', 'conveyed', 'briefed'],
+    'trained': ['mentored', 'coached', 'educated', 'developed'],
+    'maintained': ['sustained', 'ensured', 'upheld', 'preserved'],
+    'supported': ['enabled', 'facilitated', 'assisted', 'bolstered'],
+    'coordinated': ['orchestrated', 'synchronized', 'aligned', 'managed'],
+    'built': ['engineered', 'constructed', 'developed', 'established'],
+    'launched': ['spearheaded', 'initiated', 'deployed', 'rolled out'],
+    'delivered': ['executed', 'accomplished', 'completed', 'achieved'],
+    'achieved': ['attained', 'surpassed', 'accomplished', 'secured'],
+    'drove': ['accelerated', 'propelled', 'catalyzed', 'fueled'],
+    'ensured': ['guaranteed', 'validated', 'verified', 'enforced'],
+}
+
+# Words considered weak or overused — trigger suggestions
+WEAK_WORDS = {
+    'helped', 'worked', 'did', 'made', 'used', 'handled', 'assisted',
+    'responsible', 'managed', 'led', 'created', 'improved', 'increased',
+    'reduced', 'supported', 'collaborated', 'communicated', 'trained',
+    'maintained', 'coordinated',
+}

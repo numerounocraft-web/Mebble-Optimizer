@@ -1,0 +1,15 @@
+STOP_WORDS = {
+    'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+    'of', 'with', 'by', 'from', 'up', 'about', 'into', 'through', 'during',
+    'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
+    'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might',
+    'shall', 'can', 'need', 'dare', 'ought', 'used', 'able',
+    'i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'she', 'it', 'they',
+    'them', 'their', 'this', 'that', 'these', 'those', 'who', 'which', 'what',
+    'not', 'no', 'nor', 'so', 'yet', 'both', 'either', 'neither', 'each',
+    'few', 'more', 'most', 'other', 'some', 'such', 'than', 'too', 'very',
+    'just', 'as', 'also', 'if', 'then', 'because', 'while', 'although',
+    'however', 'therefore', 'moreover', 'furthermore', 'thus', 'hence',
+    'well', 'also', 'now', 'here', 'there', 'when', 'where', 'why', 'how',
+    'all', 'any', 'both', 'same', 'own', 'only', 'its', 'per', 'etc',
+}

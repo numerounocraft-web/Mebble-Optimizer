@@ -1,4 +1,3 @@
-import Layout from './components/layout/Layout'   // used for workspace
 import UploadScreen from './components/upload/UploadScreen'
 import WorkspaceLayout from './components/workspace/WorkspaceLayout'
 import { useFileUpload } from './hooks/useFileUpload'
@@ -18,15 +17,13 @@ export default function App() {
   }
 
   return (
-    <Layout fluid>
-      <WorkspaceLayout
-        file={file}
-        result={result}
-        loading={loading}
-        error={analysisError}
-        onAnalyze={analyze}
-        onReset={handleReset}
-      />
-    </Layout>
+    <WorkspaceLayout
+      file={file}
+      result={result}
+      loading={loading}
+      error={analysisError}
+      onAnalyze={analyze}
+      onReset={handleReset}
+    />
   )
 }

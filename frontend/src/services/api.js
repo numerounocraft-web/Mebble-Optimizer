@@ -13,6 +13,25 @@ export async function analyzeResume(file, jobDescription) {
   return response.data
 }
 
+export async function parseResume(file) {
+  const formData = new FormData()
+  formData.append('resume', file)
+  const response = await axios.post(`${BASE_URL}/parse`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
+export async function optimizeSection({ sectionType, content, missingKeywords, domain }) {
+  const response = await axios.post(`${BASE_URL}/optimize-section`, {
+    section_type: sectionType,
+    content,
+    missing_keywords: missingKeywords,
+    domain,
+  })
+  return response.data
+}
+
 export async function downloadReport(analysisData) {
   const response = await axios.post(`${BASE_URL}/report`, analysisData)
   return response.data

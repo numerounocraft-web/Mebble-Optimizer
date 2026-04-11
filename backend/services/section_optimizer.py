@@ -83,6 +83,59 @@ def _build_keyword_phrase(keywords: list) -> str:
 
 
 class SectionOptimizer:
+    def optimize_all(
+        self,
+        sections: list,
+        missing_keywords: list,
+        domain: str = 'general',
+    ) -> list:
+        """
+        Optimize every optimizable section, distributing missing keywords
+        across sections without repeating the same keyword twice.
+
+        sections: list of dicts with keys id, type, content, optimizable
+        Returns: list of dicts with keys id, optimized
+        """
+        # Experience entries first (most capacity for keywords), then summary, then rest
+        priority = ['experience', 'professional_summary', 'skills', 'projects',
+                    'certifications', 'awards']
+
+        def sort_key(s):
+            try:
+                return priority.index(s.get('type', ''))
+            except ValueError:
+                return len(priority)
+
+        ordered = sorted(sections, key=sort_key)
+        remaining = list(missing_keywords)
+        results_map = {}
+
+        for section in ordered:
+            if not section.get('optimizable', False):
+                results_map[section['id']] = section['content']
+                continue
+
+            optimized = self.optimize(
+                section['type'], section['content'], remaining, domain
+            )
+
+            # Track which keywords were successfully woven in; only pass
+            # the leftovers to the next section so keywords aren't duplicated.
+            content_lower = section['content'].lower()
+            optimized_lower = optimized.lower()
+            remaining = [
+                kw for kw in remaining
+                if kw.lower() not in optimized_lower or kw.lower() in content_lower
+            ]
+
+            results_map[section['id']] = optimized
+
+        # Preserve the original ordering in the output
+        return [
+            {'id': s['id'], 'optimized': results_map.get(s['id'], s['content'])}
+            for s in sections
+        ]
+
     def optimize(
         self,
         section_type: str,

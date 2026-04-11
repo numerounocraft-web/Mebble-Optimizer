@@ -314,6 +314,72 @@ DOMAIN_KEYWORDS = {
         'articulate storyline', 'captivate', 'canvas', 'blackboard',
         'moodle', 'google classroom',
     },
+
+    # ── General / Cross-domain ────────────────────────────────────────────────
+    'general': {
+        # Universal soft skills (appear in almost every JD)
+        'leadership', 'team leadership', 'people leadership',
+        'communication', 'written communication', 'verbal communication',
+        'interpersonal skills', 'presentation skills', 'public speaking',
+        'problem solving', 'critical thinking', 'analytical thinking',
+        'creative thinking', 'systems thinking',
+        'time management', 'prioritization', 'multitasking',
+        'adaptability', 'flexibility', 'resilience',
+        'attention to detail', 'detail oriented', 'accuracy',
+        'organizational skills', 'self management', 'self motivated',
+        'collaboration', 'teamwork', 'team player',
+        'cross functional collaboration', 'cross functional teams',
+        'stakeholder communication', 'stakeholder engagement',
+        'decision making', 'strategic thinking', 'strategic planning',
+        'innovation', 'creativity', 'continuous learning',
+        'conflict resolution', 'negotiation', 'influence',
+        'customer focus', 'customer service', 'client management',
+        'relationship building', 'networking',
+        'mentoring', 'coaching', 'knowledge transfer',
+        'results driven', 'goal oriented', 'accountability',
+        'initiative', 'proactive', 'fast paced environment',
+        'deadline driven', 'high pressure environment',
+
+        # Universal productivity / collaboration tools
+        'microsoft office', 'microsoft 365', 'office 365',
+        'google workspace', 'google suite', 'g suite',
+        'microsoft teams', 'ms teams', 'slack', 'zoom', 'webex', 'google meet',
+        'microsoft outlook', 'gmail',
+        'sharepoint', 'sharepoint online', 'onedrive', 'google drive', 'dropbox', 'box',
+        'microsoft excel', 'excel', 'google sheets', 'spreadsheets',
+        'microsoft word', 'google docs',
+        'microsoft powerpoint', 'powerpoint', 'google slides',
+        'power automate', 'power apps', 'microsoft power platform', 'power platform',
+        'active directory', 'azure active directory', 'azure ad', 'ldap',
+        'servicenow', 'zendesk', 'freshdesk', 'intercom', 'hubspot',
+        'trello', 'basecamp', 'clickup', 'linear', 'wrike',
+        'miro', 'lucidchart', 'draw.io', 'figma',
+        'loom', 'notion', 'coda',
+        'windows server', 'linux server', 'macos',
+        'microsoft azure', 'azure devops',
+
+        # Cross-domain professional skills
+        'data driven', 'data driven decision making', 'evidence based',
+        'process improvement', 'continuous improvement', 'kaizen',
+        'best practices', 'standard operating procedures', 'sop',
+        'documentation', 'knowledge management',
+        'workflow automation', 'workflow optimization',
+        'remote work', 'distributed teams', 'hybrid work', 'virtual teams',
+        'change management', 'organizational change',
+        'budget management', 'cost management', 'financial oversight',
+        'resource allocation', 'resource management',
+        'vendor management', 'contract management', 'procurement',
+        'compliance', 'regulatory compliance', 'audit',
+        'quality assurance', 'quality control', 'qa qc',
+        'reporting', 'executive reporting', 'board reporting',
+        'metrics', 'kpi', 'okr', 'performance metrics', 'dashboards',
+        'training', 'onboarding', 'enablement',
+        'api integration', 'system integration', 'erp implementation',
+
+        # Professional credentials (generic)
+        'mba', 'masters degree', 'bachelor degree',
+        'pmp certified', 'six sigma', 'lean six sigma',
+    },
 }
 
 # Flat set of all keywords for fast O(1) lookup during n-gram matching.

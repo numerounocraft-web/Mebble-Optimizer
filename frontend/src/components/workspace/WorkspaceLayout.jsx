@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import ResumeEditor from './ResumeEditor'
 import { validateJobDescription } from '../../utils/validators'
-import { downloadReport, extractJD } from '../../services/api'
+import { downloadReport, extractJD, optimizeAllSections } from '../../services/api'
 import { useResumeParser } from '../../hooks/useResumeParser'
 
 // ── Mebble wordmark (reused from upload screen) ───────────────────────────────
@@ -117,6 +117,8 @@ export default function WorkspaceLayout({ file, result, loading, error, onAnalyz
   const [jdError, setJdError] = useState(null)
   const [jdFileLoading, setJdFileLoading] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [addAllLoading, setAddAllLoading] = useState(false)
+  const [sectionShimmer, setSectionShimmer] = useState({})
   const [activeTab, setActiveTab] = useState('optimization')
   const jdFileRef = useRef(null)
   const { sections, loading: parseLoading, error: parseError, updateSection } = useResumeParser(file)
@@ -149,6 +151,45 @@ export default function WorkspaceLayout({ file, result, loading, error, onAnalyz
     } finally {
       setJdFileLoading(false)
     }
+  }
+
+  function _addedWords(oldText, newText) {
+    const oldSet = new Set((oldText.toLowerCase().match(/\b[a-z]{3,}\b/g) || []))
+    return new Set(
+      (newText.toLowerCase().match(/\b[a-z]{3,}\b/g) || []).filter(w => !oldSet.has(w))
+    )
+  }
+
+  async function handleAddAll() {
+    if (!result || !sections || addAllLoading) return
+    setAddAllLoading(true)
+    try {
+      const toOptimize = sections
+        .filter(s => s.type !== 'header' && s.optimizable !== false)
+        .map(s => ({ id: s.id, type: s.type, content: s.content, optimizable: true }))
+
+      const response = await optimizeAllSections({
+        sections: toOptimize,
+        missingKeywords: result.missing_keywords || [],
+        domain: result.domain || 'general',
+      })
+
+      if (response.success) {
+        const shimmerMap = {}
+        for (const { id, optimized } of response.results) {
+          const original = sections.find(s => s.id === id)
+          if (original && optimized !== original.content) {
+            shimmerMap[id] = {
+              text: optimized,
+              shimmerWords: _addedWords(original.content, optimized),
+            }
+            updateSection(id, optimized)
+          }
+        }
+        setSectionShimmer(shimmerMap)
+      }
+    } catch { /* silently fail */ }
+    finally { setAddAllLoading(false) }
   }
 
   async function handleDownload() {
@@ -410,6 +451,7 @@ export default function WorkspaceLayout({ file, result, loading, error, onAnalyz
                 error={parseError}
                 result={result}
                 onSectionChange={updateSection}
+                sectionShimmer={sectionShimmer}
               />
             </div>
           </div>
@@ -461,7 +503,20 @@ export default function WorkspaceLayout({ file, result, loading, error, onAnalyz
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span style={{ fontSize: '13px', fontWeight: 500, color: '#989898', letterSpacing: '-0.02em', lineHeight: 1.6 }}>Missing Keywords</span>
-                          <span style={{ fontSize: '12px', fontWeight: 600, color: '#028FF4', letterSpacing: '-0.01em', cursor: 'pointer' }}>Add All</span>
+                          <button
+                            onClick={handleAddAll}
+                            disabled={addAllLoading}
+                            style={{
+                              fontSize: '12px', fontWeight: 600,
+                              color: addAllLoading ? '#A0C4E0' : '#028FF4',
+                              letterSpacing: '-0.01em',
+                              cursor: addAllLoading ? 'wait' : 'pointer',
+                              background: 'none', border: 'none', padding: 0,
+                              fontFamily: 'inherit',
+                            }}
+                          >
+                            {addAllLoading ? 'Adding…' : 'Add All'}
+                          </button>
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                           {result.missing_keywords.map(k => <Pill key={k} word={k} variant="missing" />)}

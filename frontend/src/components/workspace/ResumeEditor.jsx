@@ -172,7 +172,7 @@ function OptimizeBtn({ onClick, disabled, state }) {
 }
 
 // ── Single job entry inside the Experience section ────────────────────────────
-function JobEntry({ entry, index, result, onEntryChange }) {
+function JobEntry({ entry, index, result, onEntryChange, externalShimmer }) {
   const [text, setText] = useState(entry)
   const [optimizing, setOptimizing] = useState(false)
   const [shimmerWords, setShimmerWords] = useState(null)   // Set<string> | null
@@ -181,7 +181,20 @@ function JobEntry({ entry, index, result, onEntryChange }) {
   // Sync when parent re-parses (new file)
   useEffect(() => { setText(entry) }, [entry])
 
-  const needsHighlight = !shimmerWords && result?.missing_keywords?.length > 0
+  // Apply bulk "Add All" shimmer from parent
+  useEffect(() => {
+    if (!externalShimmer) return
+    setText(externalShimmer.text)
+    setShimmerWords(externalShimmer.shimmerWords)
+    setIsEditing(false)
+    setOptimizing(false)
+  }, [externalShimmer])
+
+  // Highlight only if THIS entry's text contains a weak action word from the analysis
+  const actionSuggestions = result?.action_words_analysis?.suggestions || []
+  const needsHighlight = !shimmerWords && actionSuggestions.some(({ current }) =>
+    new RegExp(`\\b${current}\\b`, 'i').test(text)
+  )
 
   async function handleOptimize() {
     if (optimizing || !result) return
@@ -194,10 +207,18 @@ function JobEntry({ entry, index, result, onEntryChange }) {
         domain: result.domain || 'general',
       })
       if (res.success) {
-        const added = findAddedWords(text, res.optimized)
+        // Prefer shimmer-ing the specific suggested verbs that landed in the new text
+        const suggestedVerbs = new Set(actionSuggestions.map(s => s.suggested.toLowerCase()))
+        const oldWords = new Set((text.toLowerCase().match(/\b[a-z]{3,}\b/g) || []))
+        const verbShimmer = new Set(
+          (res.optimized.toLowerCase().match(/\b[a-z]{3,}\b/g) || [])
+            .filter(w => suggestedVerbs.has(w) && !oldWords.has(w))
+        )
+        // Fall back to any new word if the optimizer used different replacements
+        const shimmer = verbShimmer.size > 0 ? verbShimmer : findAddedWords(text, res.optimized)
         setText(res.optimized)
         onEntryChange(index, res.optimized)
-        setShimmerWords(added)
+        setShimmerWords(shimmer)
         setIsEditing(false)
       }
     } catch { /* silently fail */ }
@@ -268,13 +289,26 @@ function JobEntry({ entry, index, result, onEntryChange }) {
 }
 
 // ── Experience section — renders each job entry separately ───────────────────
-function ExperienceSection({ section, result, onContentChange }) {
+function ExperienceSection({ section, result, onContentChange, externalShimmer }) {
   // entries are \n\n-separated blocks
   const [entries, setEntries] = useState(() => section.content.split(/\n\n+/).filter(e => e.trim()))
+  // Per-entry shimmer objects set when "Add All" fires: [{text, shimmerWords}, ...]
+  const [entryShimmers, setEntryShimmers] = useState([])
 
   useEffect(() => {
     setEntries(section.content.split(/\n\n+/).filter(e => e.trim()))
   }, [section.content])
+
+  // Apply bulk "Add All" shimmer — split the optimized full text back into entries
+  useEffect(() => {
+    if (!externalShimmer) { setEntryShimmers([]); return }
+    const newEntries = externalShimmer.text.split(/\n\n+/).filter(e => e.trim())
+    setEntries(newEntries)
+    setEntryShimmers(newEntries.map(text => ({
+      text,
+      shimmerWords: externalShimmer.shimmerWords,
+    })))
+  }, [externalShimmer])
 
   function handleEntryChange(index, newText) {
     const updated = [...entries]
@@ -303,6 +337,7 @@ function ExperienceSection({ section, result, onContentChange }) {
             index={i}
             result={result}
             onEntryChange={handleEntryChange}
+            externalShimmer={entryShimmers[i] || null}
           />
         ))}
       </div>
@@ -311,13 +346,21 @@ function ExperienceSection({ section, result, onContentChange }) {
 }
 
 // ── Generic section (summary, education, skills, etc.) ───────────────────────
-function ResumeSection({ section, result, onContentChange }) {
+function ResumeSection({ section, result, onContentChange, externalShimmer }) {
   const [content, setContent] = useState(section.content)
   const [optimizing, setOptimizing] = useState(false)
   const [shimmerWords, setShimmerWords] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => { setContent(section.content) }, [section.content])
+
+  // Apply bulk "Add All" shimmer from parent
+  useEffect(() => {
+    if (!externalShimmer) return
+    setContent(externalShimmer.text)
+    setShimmerWords(externalShimmer.shimmerWords)
+    setIsEditing(false)
+  }, [externalShimmer])
 
   const needsOptimization = section.optimizable && result?.missing_keywords?.length > 0 && !shimmerWords
 
@@ -409,7 +452,7 @@ function ResumeSection({ section, result, onContentChange }) {
 }
 
 // ── Main ResumeEditor ─────────────────────────────────────────────────────────
-export default function ResumeEditor({ sections, loading, error, result, onSectionChange }) {
+export default function ResumeEditor({ sections, loading, error, result, onSectionChange, sectionShimmer = {} }) {
   if (loading) {
     return (
       <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -470,6 +513,7 @@ export default function ResumeEditor({ sections, loading, error, result, onSecti
             section={section}
             result={result}
             onContentChange={onSectionChange}
+            externalShimmer={sectionShimmer[section.id] || null}
           />
         ) : (
           <ResumeSection
@@ -477,6 +521,7 @@ export default function ResumeEditor({ sections, loading, error, result, onSecti
             section={section}
             result={result}
             onContentChange={onSectionChange}
+            externalShimmer={sectionShimmer[section.id] || null}
           />
         )
       )}

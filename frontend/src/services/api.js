@@ -41,6 +41,15 @@ export async function optimizeSection({ sectionType, content, missingKeywords, d
   return response.data
 }
 
+export async function optimizeAllSections({ sections, missingKeywords, domain }) {
+  const response = await axios.post(`${BASE_URL}/optimize-all`, {
+    sections,
+    missing_keywords: missingKeywords,
+    domain,
+  })
+  return response.data
+}
+
 export async function downloadReport(analysisData) {
   const response = await axios.post(`${BASE_URL}/report`, analysisData)
   return response.data

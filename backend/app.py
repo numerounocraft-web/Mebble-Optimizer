@@ -91,6 +91,27 @@ def extract_jd():
     return jsonify({'success': True, 'text': text})
 
 
+@app.post('/api/optimize-all')
+def optimize_all():
+    """Optimize all resume sections at once, distributing missing keywords without repetition."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    sections = data.get('sections', [])
+    missing_keywords = data.get('missing_keywords', [])
+    domain = data.get('domain', 'general')
+
+    if not sections:
+        return jsonify({'success': False, 'error': 'Sections are required'}), 400
+
+    try:
+        results = section_optimizer.optimize_all(sections, missing_keywords, domain)
+        return jsonify({'success': True, 'results': results})
+    except Exception:
+        return jsonify({'success': False, 'error': 'Optimization failed. Please try again.'}), 500
+
+
 @app.post('/api/optimize-section')
 def optimize_section():
     """Optimize a single resume section based on missing keywords."""

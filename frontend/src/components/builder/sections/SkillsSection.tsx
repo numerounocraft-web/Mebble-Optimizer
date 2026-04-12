@@ -6,29 +6,33 @@ import type { SkillGroup } from "@/lib/schemas/resume";
 
 const FONT = "var(--font-geist-sans), system-ui, sans-serif";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px",
-  borderRadius: "8px",
-  border: "1px solid #F0F0F0",
-  backgroundColor: "transparent",
-  fontSize: "13px",
-  fontWeight: 500,
-  color: "#1F1F1F",
-  fontFamily: FONT,
-  letterSpacing: "-0.02em",
-  lineHeight: "90%",
-  outline: "none",
-  boxSizing: "border-box",
-};
-
 interface Props {
   groups: SkillGroup[];
   onChange: (groups: SkillGroup[]) => void;
   hideAddButton?: boolean;
+  darkMode?: boolean;
 }
 
-export default function SkillsSection({ groups, onChange, hideAddButton }: Props) {
+export default function SkillsSection({ groups, onChange, hideAddButton, darkMode }: Props) {
+  const dm = darkMode ?? false;
+  const borderColor = dm ? "#2C2C2C" : "#F0F0F0";
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "8px",
+    borderRadius: "8px",
+    border: `1px solid ${borderColor}`,
+    backgroundColor: "transparent",
+    fontSize: "13px",
+    fontWeight: 500,
+    color: dm ? "#EFEFEF" : "#1F1F1F",
+    fontFamily: FONT,
+    letterSpacing: "-0.02em",
+    lineHeight: "90%",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   function removeGroup(id: string) {
@@ -52,15 +56,7 @@ export default function SkillsSection({ groups, onChange, hideAddButton }: Props
 
   if (groups.length === 0) {
     return (
-      <p
-        style={{
-          fontSize: "12px",
-          color: "#C3C3C3",
-          fontFamily: FONT,
-          letterSpacing: "-0.02em",
-          margin: 0,
-        }}
-      >
+      <p style={{ fontSize: "12px", color: dm ? "#555558" : "#C3C3C3", fontFamily: FONT, letterSpacing: "-0.02em", margin: 0 }}>
         No skill groups yet. Use &ldquo;Add Skill Group&rdquo; above.
       </p>
     );
@@ -69,14 +65,7 @@ export default function SkillsSection({ groups, onChange, hideAddButton }: Props
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {groups.map((group) => (
-        <div
-          key={group.id}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "24px",
-          }}
-        >
+        <div key={group.id} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           {/* Category + remove */}
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <input
@@ -85,20 +74,13 @@ export default function SkillsSection({ groups, onChange, hideAddButton }: Props
               onChange={(e) => updateGroup(group.id, { category: e.target.value })}
               style={{ ...inputStyle, flex: 1 }}
               onFocus={(e) => (e.target.style.borderColor = "#FF7512")}
-              onBlur={(e) => (e.target.style.borderColor = "#F0F0F0")}
+              onBlur={(e) => (e.target.style.borderColor = borderColor)}
             />
             <button
               onClick={() => removeGroup(group.id)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: "2px",
-                display: "flex",
-                flexShrink: 0,
-              }}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "2px", display: "flex", flexShrink: 0 }}
             >
-              <Trash2 size={13} color="#D0D0D0" />
+              <Trash2 size={13} color={dm ? "#555558" : "#D0D0D0"} />
             </button>
           </div>
 
@@ -114,11 +96,11 @@ export default function SkillsSection({ groups, onChange, hideAddButton }: Props
                     gap: "4px",
                     padding: "3px 9px",
                     borderRadius: "9999px",
-                    backgroundColor: "#fff",
-                    border: "1px solid #F0F0F0",
+                    backgroundColor: dm ? "#1A1A1E" : "#fff",
+                    border: `1px solid ${borderColor}`,
                     fontSize: "11px",
                     fontWeight: 500,
-                    color: "#1F1F1F",
+                    color: dm ? "#EFEFEF" : "#1F1F1F",
                     letterSpacing: "-0.02em",
                     fontFamily: FONT,
                   }}
@@ -126,15 +108,9 @@ export default function SkillsSection({ groups, onChange, hideAddButton }: Props
                   {skill}
                   <button
                     onClick={() => removeSkill(group, skill)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 0,
-                      display: "flex",
-                    }}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}
                   >
-                    <X size={9} color="#C3C3C3" />
+                    <X size={9} color={dm ? "#555558" : "#C3C3C3"} />
                   </button>
                 </span>
               ))}
@@ -146,37 +122,17 @@ export default function SkillsSection({ groups, onChange, hideAddButton }: Props
             <input
               placeholder="Type skill, press Enter"
               value={drafts[group.id] ?? ""}
-              onChange={(e) =>
-                setDrafts((d) => ({ ...d, [group.id]: e.target.value }))
-              }
+              onChange={(e) => setDrafts((d) => ({ ...d, [group.id]: e.target.value }))}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addSkill(group);
-                }
+                if (e.key === "Enter") { e.preventDefault(); addSkill(group); }
               }}
-              style={{
-                ...inputStyle,
-                flex: 1,
-                fontSize: "12px",
-                padding: "6px 8px",
-              }}
+              style={{ ...inputStyle, flex: 1, fontSize: "12px", padding: "6px 8px" }}
               onFocus={(e) => (e.target.style.borderColor = "#FF7512")}
-              onBlur={(e) => (e.target.style.borderColor = "#F0F0F0")}
+              onBlur={(e) => (e.target.style.borderColor = borderColor)}
             />
             <button
               onClick={() => addSkill(group)}
-              style={{
-                background: "#E4F3FE",
-                border: "none",
-                borderRadius: "8px",
-                padding: "6px 10px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                color: "#028FF4",
-                flexShrink: 0,
-              }}
+              style={{ background: "#E4F3FE", border: "none", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", display: "flex", alignItems: "center", color: "#028FF4", flexShrink: 0 }}
             >
               <Plus size={13} />
             </button>
@@ -187,29 +143,18 @@ export default function SkillsSection({ groups, onChange, hideAddButton }: Props
       {!hideAddButton && (
         <button
           onClick={() => {
-            const g: SkillGroup = {
-              id: crypto.randomUUID(),
-              category: "",
-              items: [],
-            };
+            const g: SkillGroup = { id: crypto.randomUUID(), category: "", items: [] };
             onChange([...groups, g]);
             setDrafts((d) => ({ ...d, [g.id]: "" }));
           }}
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-            padding: "7px 12px",
-            borderRadius: "9999px",
-            border: "1px solid #F0F0F0",
-            backgroundColor: "#fff",
-            cursor: "pointer",
-            fontSize: "11px",
-            fontWeight: 600,
-            color: "#020202",
-            letterSpacing: "-0.02em",
-            fontFamily: FONT,
-            alignSelf: "flex-start",
+            display: "flex", alignItems: "center", gap: "5px",
+            padding: "7px 12px", borderRadius: "9999px",
+            border: `1px solid ${borderColor}`,
+            backgroundColor: dm ? "#1A1A1E" : "#fff",
+            cursor: "pointer", fontSize: "11px", fontWeight: 600,
+            color: dm ? "#EFEFEF" : "#020202",
+            letterSpacing: "-0.02em", fontFamily: FONT, alignSelf: "flex-start",
           }}
         >
           <Plus size={12} strokeWidth={2.5} />

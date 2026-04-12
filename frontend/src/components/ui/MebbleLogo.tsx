@@ -1,9 +1,9 @@
 "use client";
 
-export default function MebbleLogo({ className = "" }: { className?: string }) {
+export default function MebbleLogo({ className = "", height = 22 }: { className?: string; height?: number }) {
   return (
     <svg
-      height="22"
+      height={height}
       viewBox="0 0 255 22"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

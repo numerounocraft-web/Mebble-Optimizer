@@ -2,12 +2,16 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Download,
   SlidersHorizontal,
   Send,
   Plus,
   ChevronDown,
   GripVertical,
+  Settings,
+  Moon,
+  Sun,
+  Share2,
+  Check,
 } from "lucide-react";
 import MebbleLogo from "@/components/ui/MebbleLogo";
 import ResumePreview from "@/components/builder/ResumePreview";
@@ -79,14 +83,14 @@ function newSkillGroup(): SkillGroup {
 }
 
 // ── Drop placeholder ──────────────────────────────────────────────────────────
-function DropPlaceholder({ height }: { height: number }) {
+function DropPlaceholder({ height, darkMode }: { height: number; darkMode?: boolean }) {
   return (
     <div
       style={{
         height: `${height}px`,
         borderRadius: "16px",
-        border: "2px dashed #D4D4D4",
-        backgroundColor: "#F4F4F6",
+        border: `2px dashed ${darkMode ? "#383838" : "#D4D4D4"}`,
+        backgroundColor: darkMode ? "#1A1A1A" : "#F4F4F6",
         flexShrink: 0,
         transition: "all 0.15s ease",
       }}
@@ -105,6 +109,7 @@ function SectionCard({
   onGripPointerDown,
   ghost,
   cardRef,
+  darkMode,
 }: {
   title: string;
   actionLabel?: string;
@@ -113,14 +118,16 @@ function SectionCard({
   isOpen: boolean;
   onToggle: () => void;
   onGripPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void;
-  ghost?: boolean;   // true = invisible size-keeper while floating clone exists
+  ghost?: boolean;
   cardRef?: (el: HTMLDivElement | null) => void;
+  darkMode?: boolean;
 }) {
+  const dm = darkMode ?? false;
   return (
     <div
       ref={cardRef}
       style={{
-        backgroundColor: "#F9F9FB",
+        backgroundColor: dm ? "#161619" : "#F9F9FB",
         borderRadius: "16px",
         display: "flex",
         flexDirection: "column",
@@ -141,14 +148,14 @@ function SectionCard({
         }}
         onClick={onToggle}
       >
-        {/* Grip — stops click from toggling */}
+        {/* Grip */}
         <div
           onPointerDown={onGripPointerDown}
           onClick={(e) => e.stopPropagation()}
           style={{
             display: "flex",
             alignItems: "center",
-            color: "#C4C4C4",
+            color: dm ? "#444444" : "#C4C4C4",
             cursor: "grab",
             flexShrink: 0,
             touchAction: "none",
@@ -165,14 +172,14 @@ function SectionCard({
             fontWeight: 600,
             lineHeight: "90%",
             letterSpacing: "-0.02em",
-            color: "#727272",
+            color: dm ? "#9A9A9A" : "#727272",
             fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
           }}
         >
           {title}
         </span>
 
-        {/* Add button — fades in when open */}
+        {/* Add button */}
         {actionLabel && onAction && (
           <button
             onClick={(e) => { e.stopPropagation(); onAction(); }}
@@ -205,7 +212,7 @@ function SectionCard({
           style={{
             display: "flex",
             alignItems: "center",
-            color: "#B0B0B0",
+            color: dm ? "#555555" : "#B0B0B0",
             flexShrink: 0,
             transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
             transition: "transform 0.25s ease",
@@ -215,7 +222,7 @@ function SectionCard({
         </div>
       </div>
 
-      {/* Animated expand/collapse via grid-template-rows */}
+      {/* Animated expand/collapse */}
       <div
         style={{
           display: "grid",
@@ -225,15 +232,15 @@ function SectionCard({
       >
         <div style={{ overflow: "hidden" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "0 16px 16px" }}>
-              <div
+            <div
               style={{
                 display: "flex",
                 flexDirection: "column",
                 gap: "16px",
                 padding: "16px",
                 borderRadius: "12px",
-                border: "1px solid #F0F0F0",
-                backgroundColor: "#FFFFFF",
+                border: `1px solid ${dm ? "#2C2C2C" : "#F0F0F0"}`,
+                backgroundColor: dm ? "#161619" : "#FFFFFF",
               }}
             >
               {children}
@@ -255,6 +262,52 @@ export default function BuilderPage() {
   const [openSection, setOpenSection] = useState<SectionId | null>("personalInfo");
   const [sectionOrder, setSectionOrder] = useState<SectionId[]>(DEFAULT_ORDER);
   const [dragState, setDragState] = useState<DragState | null>(null);
+
+  // Navbar state
+  const [darkMode,          setDarkMode]          = useState(false);
+  const [settingsOpen,      setSettingsOpen]      = useState(false);
+  const [settingsClosing,   setSettingsClosing]   = useState(false);
+  const [selectedTemplate,  setSelectedTemplate]  = useState(0);
+  const [selectedColor,     setSelectedColor]     = useState("#028FF4");
+  const settingsRef = useRef<HTMLDivElement>(null);
+
+  function closeSettings() {
+    setSettingsClosing(true);
+    setTimeout(() => {
+      setSettingsOpen(false);
+      setSettingsClosing(false);
+    }, 180);
+  }
+
+  // Close settings dropdown on outside click
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        closeSettings();
+      }
+    }
+    if (settingsOpen) document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [settingsOpen]);
+
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  const t = {
+    bg:               darkMode ? "#121214" : "#FFFFFF",
+    surface:          darkMode ? "#1E1E1E" : "#F9F9FB",
+    surfaceRaised:    darkMode ? "#161619" : "#FFFFFF",
+    navBg:            darkMode ? "#121214" : "#FFFFFF",
+    border:           darkMode ? "#2C2C2C" : "#F1F1F1",
+    borderMid:        darkMode ? "#2C2C2C" : "#F0F0F0",
+    textPrimary:      darkMode ? "#EFEFEF" : "#1F1F1F",
+    textSecondary:    darkMode ? "#888888" : "#767678",
+    textMuted:        darkMode ? "#606060" : "#727272",
+    resumeBg:         darkMode ? "#161619" : "#F9F9FB",
+    resumeBorder:     darkMode ? "#2C2C2C" : "#F0F0F0",
+    dropdownBg:       darkMode ? "#1C1C1C" : "#FFFFFF",
+    dropdownShadow:   darkMode ? "0 8px 32px rgba(0,0,0,0.55)" : "0 8px 32px rgba(0,0,0,0.10)",
+    iconColor:        darkMode ? "#888888" : "#727272",
+    settingsActiveBg: darkMode ? "#252525" : "#F1F1F1",
+  };
 
   // Stores a ref to each rendered card DOM node
   const cardRefs = useRef<Map<SectionId, HTMLDivElement>>(new Map());
@@ -383,7 +436,7 @@ export default function BuilderPage() {
       else cardRefs.current.delete(id);
     };
 
-    const sharedProps = { isOpen, onToggle: toggle, onGripPointerDown: onGrip, ghost, cardRef: ref };
+    const sharedProps = { isOpen, onToggle: toggle, onGripPointerDown: onGrip, ghost, cardRef: ref, darkMode };
 
     switch (id) {
       case "personalInfo":
@@ -392,13 +445,14 @@ export default function BuilderPage() {
             <PersonalInfoSection
               data={resume.personalInfo}
               onChange={(v) => update("personalInfo", v)}
+              darkMode={darkMode}
             />
           </SectionCard>
         );
       case "summary":
         return (
           <SectionCard key={ghost ? `${id}-ghost` : id} title="Summary" {...sharedProps}>
-            <SummarySection value={resume.summary ?? ""} onChange={(v) => update("summary", v)} />
+            <SummarySection value={resume.summary ?? ""} onChange={(v) => update("summary", v)} darkMode={darkMode} />
           </SectionCard>
         );
       case "experience":
@@ -414,6 +468,7 @@ export default function BuilderPage() {
               entries={resume.experience}
               onChange={(v) => update("experience", v)}
               hideAddButton
+              darkMode={darkMode}
             />
           </SectionCard>
         );
@@ -430,6 +485,7 @@ export default function BuilderPage() {
               entries={resume.education}
               onChange={(v) => update("education", v)}
               hideAddButton
+              darkMode={darkMode}
             />
           </SectionCard>
         );
@@ -446,6 +502,7 @@ export default function BuilderPage() {
               groups={resume.skills}
               onChange={(v) => update("skills", v)}
               hideAddButton
+              darkMode={darkMode}
             />
           </SectionCard>
         );
@@ -454,56 +511,324 @@ export default function BuilderPage() {
 
   // ── JSX ───────────────────────────────────────────────────────────────────
   return (
+    <>
+    <style>{`
+      @keyframes dropdownScale {
+        0%   { opacity: 0; transform: scale(0.88); }
+        100% { opacity: 1; transform: scale(1); }
+      }
+      @keyframes dropdownScaleOut {
+        0%   { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(0.88); }
+      }
+      [data-dark="true"] input,
+      [data-dark="true"] textarea {
+        color: #EFEFEF !important;
+        caret-color: #EFEFEF;
+      }
+      [data-dark="true"] input::placeholder,
+      [data-dark="true"] textarea::placeholder {
+        color: #4A4A4E !important;
+        opacity: 1;
+      }
+    `}</style>
     <div
+      data-dark={String(darkMode)}
       style={{
         display: "flex",
+        flexDirection: "column",
         height: "100vh",
         overflow: "hidden",
         fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+        backgroundColor: t.bg,
       }}
     >
-      {/* ── Left sidebar ───────────────────────────────────────────────────── */}
+      {/* ── Top Navbar ─────────────────────────────────────────────────────── */}
       <div
         style={{
-          width: "321px",
+          height: "56px",
           flexShrink: 0,
-          backgroundColor: "#F9F9FB",
+          backgroundColor: t.navBg,
+          borderBottom: `1px solid ${t.border}`,
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
-          padding: "32px",
-          gap: "32px",
-          overflow: "hidden",
+          justifyContent: "space-between",
+          padding: "0 24px",
+          zIndex: 100,
         }}
       >
-        <div style={{ alignSelf: "flex-start" }}>
-          <MebbleLogo />
+        {/* Left: logo */}
+        <MebbleLogo height={18} />
+
+        {/* Right: actions */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+
+          {/* Dark mode toggle */}
+          <button
+            onClick={() => setDarkMode((d) => !d)}
+            style={{
+              width: "34px",
+              height: "34px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "8px",
+              border: "none",
+              backgroundColor: "transparent",
+              cursor: "pointer",
+            }}
+          >
+            {darkMode
+              ? <Sun  size={16} color={t.iconColor} strokeWidth={1.8} />
+              : <Moon size={16} color={t.iconColor} strokeWidth={1.8} />
+            }
+          </button>
+
+          {/* Settings — opens template + colour dropdown */}
+          <div ref={settingsRef} style={{ position: "relative" }}>
+            <button
+              onClick={() => settingsOpen ? closeSettings() : setSettingsOpen(true)}
+              style={{
+                width: "34px",
+                height: "34px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "8px",
+                border: "none",
+                backgroundColor: settingsOpen ? t.settingsActiveBg : "transparent",
+                cursor: "pointer",
+              }}
+            >
+              <Settings size={16} color={t.iconColor} strokeWidth={1.8} />
+            </button>
+
+            {/* Dropdown */}
+            {(settingsOpen || settingsClosing) && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 8px)",
+                  right: 0,
+                  width: "300px",
+                  backgroundColor: t.dropdownBg,
+                  borderRadius: "16px",
+                  border: "none",
+                  padding: "20px",
+                  boxShadow: t.dropdownShadow,
+                  zIndex: 200,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "20px",
+                  transformOrigin: "top right",
+                  animation: settingsClosing
+                    ? "dropdownScaleOut 0.18s cubic-bezier(0.4, 0, 1, 1) forwards"
+                    : "dropdownScale 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+                }}
+              >
+                {/* Select Template */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <p style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: t.textPrimary, letterSpacing: "-0.02em" }}>
+                    Select Template
+                  </p>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    {[
+                      /* Template 0 — Classic single column */
+                      <svg key={0} width="78" height="90" viewBox="0 0 78 90" fill="none">
+                        <rect x="1" y="1" width="76" height="88" rx="5" fill="#EFF6FF" stroke={selectedTemplate === 0 ? "#028FF4" : "#D0D8E4"} strokeWidth={selectedTemplate === 0 ? 2 : 1} />
+                        <rect x="8" y="8"  width="62" height="10" rx="2" fill="#C2D9F7" />
+                        <rect x="8" y="22" width="40" height="4"  rx="1" fill="#BFDBFE" />
+                        <rect x="8" y="30" width="62" height="3"  rx="1" fill="#DBEAFE" />
+                        <rect x="8" y="36" width="55" height="3"  rx="1" fill="#DBEAFE" />
+                        <rect x="8" y="42" width="58" height="3"  rx="1" fill="#DBEAFE" />
+                        <rect x="8" y="50" width="40" height="4"  rx="1" fill="#BFDBFE" />
+                        <rect x="8" y="58" width="62" height="3"  rx="1" fill="#DBEAFE" />
+                        <rect x="8" y="64" width="50" height="3"  rx="1" fill="#DBEAFE" />
+                        <rect x="8" y="72" width="40" height="4"  rx="1" fill="#BFDBFE" />
+                        <rect x="8" y="80" width="62" height="3"  rx="1" fill="#DBEAFE" />
+                      </svg>,
+                      /* Template 1 — Two column */
+                      <svg key={1} width="78" height="90" viewBox="0 0 78 90" fill="none">
+                        <rect x="1" y="1" width="76" height="88" rx="5" fill="#F9F9FB" stroke={selectedTemplate === 1 ? "#028FF4" : "#D0D8E4"} strokeWidth={selectedTemplate === 1 ? 2 : 1} />
+                        <rect x="8"  y="8"  width="62" height="10" rx="2" fill="#E2E8F0" />
+                        <rect x="8"  y="22" width="24" height="4"  rx="1" fill="#CBD5E1" />
+                        <rect x="8"  y="30" width="24" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="8"  y="36" width="24" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="8"  y="42" width="24" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="8"  y="50" width="24" height="4"  rx="1" fill="#CBD5E1" />
+                        <rect x="8"  y="58" width="24" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="8"  y="64" width="24" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="36" y="22" width="34" height="4"  rx="1" fill="#CBD5E1" />
+                        <rect x="36" y="30" width="34" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="36" y="36" width="28" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="36" y="42" width="34" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="36" y="50" width="34" height="4"  rx="1" fill="#CBD5E1" />
+                        <rect x="36" y="58" width="30" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="36" y="64" width="34" height="3"  rx="1" fill="#E2E8F0" />
+                        <line x1="33" y1="20" x2="33" y2="82" stroke="#E2E8F0" strokeWidth="1" />
+                      </svg>,
+                      /* Template 2 — Modern sidebar */
+                      <svg key={2} width="78" height="90" viewBox="0 0 78 90" fill="none">
+                        <rect x="1" y="1" width="76" height="88" rx="5" fill="#F9F9FB" stroke={selectedTemplate === 2 ? "#028FF4" : "#D0D8E4"} strokeWidth={selectedTemplate === 2 ? 2 : 1} />
+                        <rect x="1"  y="1"  width="22" height="88" rx="5" fill="#E8F4FD" />
+                        <rect x="4"  y="8"  width="16" height="8"  rx="2" fill="#C2D9F7" />
+                        <rect x="4"  y="22" width="16" height="3"  rx="1" fill="#BFDBFE" />
+                        <rect x="4"  y="28" width="16" height="3"  rx="1" fill="#DBEAFE" />
+                        <rect x="4"  y="34" width="16" height="3"  rx="1" fill="#DBEAFE" />
+                        <rect x="4"  y="44" width="16" height="3"  rx="1" fill="#BFDBFE" />
+                        <rect x="4"  y="50" width="16" height="3"  rx="1" fill="#DBEAFE" />
+                        <rect x="4"  y="56" width="12" height="3"  rx="1" fill="#DBEAFE" />
+                        <rect x="27" y="8"  width="44" height="4"  rx="1" fill="#CBD5E1" />
+                        <rect x="27" y="16" width="44" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="27" y="22" width="36" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="27" y="30" width="44" height="4"  rx="1" fill="#CBD5E1" />
+                        <rect x="27" y="38" width="44" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="27" y="44" width="38" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="27" y="50" width="44" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="27" y="58" width="44" height="4"  rx="1" fill="#CBD5E1" />
+                        <rect x="27" y="66" width="40" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="27" y="72" width="44" height="3"  rx="1" fill="#E2E8F0" />
+                      </svg>,
+                    ].map((thumb, i) => (
+                      <div
+                        key={i}
+                        onClick={() => setSelectedTemplate(i)}
+                        style={{
+                          position: "relative",
+                          cursor: "pointer",
+                          borderRadius: "8px",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {thumb}
+                        {/* Selection dot */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "6px",
+                            right: "6px",
+                            width: "10px",
+                            height: "10px",
+                            borderRadius: "50%",
+                            border: `2px solid ${selectedTemplate === i ? "#028FF4" : "#D0D8E4"}`,
+                            backgroundColor: selectedTemplate === i ? "#028FF4" : t.dropdownBg,
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div style={{ height: "1px", backgroundColor: t.border }} />
+
+                {/* Colour */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <p style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: t.textPrimary, letterSpacing: "-0.02em" }}>
+                    Colour
+                  </p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    {[
+                      "#028FF4", "#D91E8C", "#E53E3E", "#F87171",
+                      "#F59E0B", "#22C55E", "#8B5CF6", "#000000",
+                    ].map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => setSelectedColor(color)}
+                        style={{
+                          width: "28px",
+                          height: "28px",
+                          borderRadius: "50%",
+                          backgroundColor: color,
+                          border: selectedColor === color ? "2.5px solid #FFFFFF" : "2.5px solid transparent",
+                          outline: selectedColor === color ? `2.5px solid ${color}` : "none",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {selectedColor === color && (
+                          <Check size={12} color="#FFFFFF" strokeWidth={3} />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Export */}
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            style={{
+              height: "34px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "0 14px",
+              borderRadius: "9999px",
+              border: "none",
+              backgroundColor: "#E4F3FE",
+              cursor: exporting ? "default" : "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <span style={{ fontSize: "13px", fontWeight: 600, color: "#028FF4", letterSpacing: "-0.02em" }}>
+              {exporting ? "Exporting…" : "Export"}
+            </span>
+            <Share2 size={13} color="#028FF4" strokeWidth={2} />
+          </button>
         </div>
-        <div style={{ flex: 1 }} />
-        <div style={{ alignSelf: "stretch", display: "flex", flexDirection: "column", gap: "16px" }}>
+      </div>
+
+      {/* ── Content area ───────────────────────────────────────────────────── */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          overflow: "hidden",
+          backgroundColor: t.bg,
+        }}
+      >
+        {/* Left panel — JD input */}
+        <div
+          style={{
+            width: "280px",
+            flexShrink: 0,
+            borderRight: `1px solid ${t.border}`,
+            display: "flex",
+            flexDirection: "column",
+            padding: "24px",
+            gap: "16px",
+            overflowY: "auto",
+            backgroundColor: t.bg,
+          }}
+        >
           <p
             style={{
               fontSize: "13px",
               lineHeight: "160%",
               letterSpacing: "-0.02em",
-              color: "#727272",
+              color: t.textMuted,
               fontWeight: 500,
               margin: 0,
             }}
           >
-            Your uploaded resume is currently in display. To get a well optimized Resume for your
-            application, kindly paste or send the job requirements.
+            Paste the job description to get keyword-matched suggestions for your resume.
           </p>
           <div
             style={{
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #F1F1F1",
+              backgroundColor: t.surfaceRaised,
+              border: `1px solid ${t.border}`,
               borderRadius: "8px",
               padding: "12px",
               display: "flex",
               flexDirection: "column",
               gap: "12px",
-              boxShadow: "0 6px 24px 0 rgba(236,236,236,0.2)",
             }}
           >
             {jdFocused || jdText ? (
@@ -513,7 +838,7 @@ export default function BuilderPage() {
                 onBlur={() => setJdFocused(false)}
                 placeholder="Paste job description here…"
                 autoFocus
-                rows={4}
+                rows={6}
                 style={{
                   width: "100%",
                   border: "none",
@@ -521,7 +846,7 @@ export default function BuilderPage() {
                   resize: "none",
                   fontSize: "13px",
                   fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-                  color: "#1F1F1F",
+                  color: t.textPrimary,
                   backgroundColor: "transparent",
                   lineHeight: "160%",
                   letterSpacing: "-0.02em",
@@ -541,10 +866,10 @@ export default function BuilderPage() {
               >
                 <span
                   style={{
-                    fontSize: "14px",
+                    fontSize: "13px",
                     lineHeight: "160%",
                     letterSpacing: "-0.02em",
-                    color: "#767678",
+                    color: t.textSecondary,
                     fontWeight: 500,
                     display: "block",
                   }}
@@ -554,160 +879,88 @@ export default function BuilderPage() {
               </button>
             )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <SlidersHorizontal size={14} color="#727272" />
+              <SlidersHorizontal size={14} color={t.textMuted} />
               <button
                 onClick={() => {}}
                 style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}
               >
-                <Send size={14} color="#727272" />
+                <Send size={14} color={t.textMuted} />
               </button>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ── Main area ──────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          flex: 1,
-          backgroundColor: "#FFFFFF",
-          display: "flex",
-          flexDirection: "column",
-          padding: "32px",
-          gap: "32px",
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "8px" }}>
-            <div
-              style={{
-                padding: "8px 10px",
-                borderRadius: "8px",
-                backgroundColor: "#F7F7F7",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <span style={{ fontSize: "14px", lineHeight: "160%", letterSpacing: "-0.02em", color: "#727272", fontWeight: 600 }}>
-                Resume builder
-              </span>
-            </div>
-            <div
-              style={{
-                width: "39px",
-                height: "39px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: "8px",
-                backgroundColor: "#F7F7F7",
-                flexShrink: 0,
-                cursor: "pointer",
-              }}
-            >
-              <span style={{ width: "8px", height: "8px", borderRadius: "9999px", backgroundColor: "#FF7512", display: "inline-block" }} />
-            </div>
-          </div>
-
-          <button
-            onClick={handleExport}
-            disabled={exporting}
+        {/* Center — Resume preview */}
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            padding: "32px 24px",
+            backgroundColor: t.bg,
+          }}
+        >
+          <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              paddingTop: "12px",
-              paddingBottom: "12px",
-              paddingLeft: "16px",
-              paddingRight: "14px",
-              borderRadius: "9999px",
-              border: "none",
-              backgroundColor: "#E4F3FE",
-              cursor: exporting ? "default" : "pointer",
-              fontFamily: "inherit",
+              width: "100%",
+              maxWidth: "657px",
+              backgroundColor: t.resumeBg,
+              borderRadius: "16px",
+              border: `1px solid ${t.resumeBorder}`,
+              minHeight: "731px",
               flexShrink: 0,
             }}
           >
-            <span style={{ fontSize: "14px", lineHeight: "120%", color: "#028FF4", fontWeight: 600, letterSpacing: "-0.02em" }}>
-              {exporting ? "Exporting…" : "Download"}
-            </span>
-            <Download size={14} color="#028FF4" strokeWidth={2} />
-          </button>
+            <ResumePreview resume={resume} template={selectedTemplate} accentColor={selectedColor} />
+          </div>
         </div>
 
-        {/* Content row */}
-        <div style={{ flex: 1, display: "flex", overflow: "hidden", gap: 0 }}>
-          {/* Resume preview */}
-          <div
-            style={{
-              flex: 1,
-              overflowY: "auto",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "32px",
-            }}
-          >
+        {/* Right panel — section cards */}
+        <div
+          style={{
+            width: "400px",
+            flexShrink: 0,
+            borderLeft: `1px solid ${t.border}`,
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+            padding: "24px",
+            backgroundColor: t.bg,
+            userSelect: dragState ? "none" : "auto",
+          }}
+        >
+          {displayList.map((item) =>
+            item === "__placeholder__" ? (
+              <DropPlaceholder key="__placeholder__" height={dragState!.cardHeight} darkMode={darkMode} />
+            ) : (
+              renderCard(item as SectionId, dragState?.id === item)
+            )
+          )}
+
+          {/* Floating clone that follows the cursor */}
+          {dragState && (
             <div
               style={{
-                width: "100%",
-                maxWidth: "657px",
-                backgroundColor: "#F9F9FB",
+                position: "fixed",
+                top: floatingTop,
+                left: dragState.cardLeft,
+                width: dragState.cardWidth,
+                zIndex: 1000,
+                pointerEvents: "none",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
                 borderRadius: "16px",
-                border: "1px solid #F0F0F0",
-                minHeight: "731px",
-                flexShrink: 0,
+                opacity: 0.97,
               }}
             >
-              <ResumePreview resume={resume} />
+              {renderCard(dragState.id)}
             </div>
-          </div>
-
-          {/* Right panel */}
-          <div
-            style={{
-              width: "340px",
-              flexShrink: 0,
-              overflowY: "auto",
-              display: "flex",
-              flexDirection: "column",
-              gap: "10px",
-              paddingLeft: "32px",
-              // Prevent text selection during drag
-              userSelect: dragState ? "none" : "auto",
-            }}
-          >
-            {displayList.map((item, idx) =>
-              item === "__placeholder__" ? (
-                <DropPlaceholder key="__placeholder__" height={dragState!.cardHeight} />
-              ) : (
-                renderCard(item as SectionId, dragState?.id === item)
-              )
-            )}
-
-            {/* Floating clone that follows the cursor */}
-            {dragState && (
-              <div
-                style={{
-                  position: "fixed",
-                  top: floatingTop,
-                  left: dragState.cardLeft,
-                  width: dragState.cardWidth,
-                  zIndex: 1000,
-                  pointerEvents: "none",
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-                  borderRadius: "16px",
-                  opacity: 0.97,
-                }}
-              >
-                {renderCard(dragState.id)}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
+    </>
   );
 }

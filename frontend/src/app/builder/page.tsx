@@ -772,7 +772,7 @@ export default function BuilderPage() {
               padding: "0 14px",
               borderRadius: "9999px",
               border: "none",
-              backgroundColor: "#E4F3FE",
+              backgroundColor: darkMode ? "#171B1D" : "#E4F3FE",
               cursor: exporting ? "default" : "pointer",
               fontFamily: "inherit",
             }}

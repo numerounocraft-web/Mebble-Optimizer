@@ -9,7 +9,7 @@ interface Props {
 
 export default function SummarySection({ value, onChange }: Props) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       <span
         style={{
           fontSize: "13px",

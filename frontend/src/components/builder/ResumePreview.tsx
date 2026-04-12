@@ -100,14 +100,19 @@ export default function ResumePreview({ resume }: Props) {
   if (!hasContent) return <EmptyState />;
 
   /* Contact row items */
-  const contactItems: string[] = [];
-  if (personalInfo.phone) contactItems.push(personalInfo.phone);
-  if (personalInfo.email) contactItems.push(personalInfo.email);
-  if (personalInfo.location) contactItems.push(personalInfo.location);
-  if (personalInfo.linkedin)
-    contactItems.push(personalInfo.linkedin.replace(/^https?:\/\/(www\.)?/, ""));
-  if (personalInfo.website)
-    contactItems.push(personalInfo.website.replace(/^https?:\/\/(www\.)?/, ""));
+  type ContactItem =
+    | { kind: "text"; value: string }
+    | { kind: "link"; label: string; url: string };
+
+  const contactItems: ContactItem[] = [];
+  if (personalInfo.phone) contactItems.push({ kind: "text", value: personalInfo.phone });
+  if (personalInfo.email) contactItems.push({ kind: "text", value: personalInfo.email });
+  if (personalInfo.location) contactItems.push({ kind: "text", value: personalInfo.location });
+  for (const link of personalInfo.links ?? []) {
+    if (link.url) {
+      contactItems.push({ kind: "link", label: link.label || link.url, url: link.url });
+    }
+  }
 
   return (
     <div
@@ -124,8 +129,8 @@ export default function ResumePreview({ resume }: Props) {
         {personalInfo.name && (
           <span
             style={{
-              fontSize: "14px",
-              lineHeight: "160%",
+              fontSize: "24px",
+              lineHeight: "120%",
               letterSpacing: "-0.02em",
               color: "#1F1F1F",
               fontWeight: 600,
@@ -155,17 +160,26 @@ export default function ResumePreview({ resume }: Props) {
                 }}
               >
                 {i > 0 && (
-                  <span
-                    style={{
-                      margin: "0 8px",
-                      color: "#C8C8C8",
-                      fontWeight: 400,
-                    }}
-                  >
+                  <span style={{ margin: "0 8px", color: "#C8C8C8", fontWeight: 400 }}>
                     |
                   </span>
                 )}
-                {item}
+                {item.kind === "link" ? (
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      ...BODY,
+                      color: "#028FF4",
+                      textDecoration: "none",
+                    }}
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  item.value
+                )}
               </span>
             ))}
           </div>
@@ -246,10 +260,11 @@ export default function ResumePreview({ resume }: Props) {
                       display: "flex",
                       flexDirection: "column",
                       gap: "2px",
+                      listStyleType: "disc",
                     }}
                   >
                     {exp.bullets.filter(Boolean).map((b, bi) => (
-                      <li key={bi} style={BODY}>
+                      <li key={bi} style={{ ...BODY, display: "list-item" }}>
                         {b}
                       </li>
                     ))}

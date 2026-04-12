@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Download, SlidersHorizontal, Send, Plus } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  Download,
+  SlidersHorizontal,
+  Send,
+  Plus,
+  ChevronDown,
+  GripVertical,
+} from "lucide-react";
 import MebbleLogo from "@/components/ui/MebbleLogo";
 import ResumePreview from "@/components/builder/ResumePreview";
 import PersonalInfoSection from "@/components/builder/sections/PersonalInfoSection";
@@ -18,6 +25,30 @@ import {
 } from "@/lib/schemas/resume";
 import { exportResumePDF } from "@/lib/api";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+type SectionId = "personalInfo" | "summary" | "experience" | "education" | "skills";
+
+const DEFAULT_ORDER: SectionId[] = [
+  "personalInfo",
+  "summary",
+  "experience",
+  "education",
+  "skills",
+];
+
+interface DragState {
+  id: SectionId;
+  fromIndex: number;
+  hoverIndex: number;
+  startPointerY: number;
+  currentPointerY: number;
+  cardTop: number;   // card's top (px) when drag started
+  cardLeft: number;
+  cardWidth: number;
+  cardHeight: number;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function newExperience(): ExperienceEntry {
   return {
     id: crypto.randomUUID(),
@@ -47,90 +78,168 @@ function newSkillGroup(): SkillGroup {
   return { id: crypto.randomUUID(), category: "", items: [] };
 }
 
-// ── Section card wrapper ──────────────────────────────────────────────────────
+// ── Drop placeholder ──────────────────────────────────────────────────────────
+function DropPlaceholder({ height }: { height: number }) {
+  return (
+    <div
+      style={{
+        height: `${height}px`,
+        borderRadius: "16px",
+        border: "2px dashed #D4D4D4",
+        backgroundColor: "#F4F4F6",
+        flexShrink: 0,
+        transition: "all 0.15s ease",
+      }}
+    />
+  );
+}
+
+// ── Section card ──────────────────────────────────────────────────────────────
 function SectionCard({
   title,
   actionLabel,
   onAction,
   children,
+  isOpen,
+  onToggle,
+  onGripPointerDown,
+  ghost,
+  cardRef,
 }: {
   title: string;
   actionLabel?: string;
   onAction?: () => void;
   children: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  onGripPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void;
+  ghost?: boolean;   // true = invisible size-keeper while floating clone exists
+  cardRef?: (el: HTMLDivElement | null) => void;
 }) {
   return (
     <div
+      ref={cardRef}
       style={{
         backgroundColor: "#F9F9FB",
         borderRadius: "16px",
-        padding: "16px",
         display: "flex",
         flexDirection: "column",
-        gap: "16px",
         flexShrink: 0,
+        opacity: ghost ? 0 : 1,
+        transition: "opacity 0.1s ease",
+        userSelect: "none",
       }}
     >
-      {/* Section header */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          padding: "14px 16px",
+          cursor: "pointer",
+        }}
+        onClick={onToggle}
+      >
+        {/* Grip — stops click from toggling */}
+        <div
+          onPointerDown={onGripPointerDown}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            color: "#C4C4C4",
+            cursor: "grab",
+            flexShrink: 0,
+            touchAction: "none",
+          }}
+        >
+          <GripVertical size={15} strokeWidth={2} />
+        </div>
+
+        {/* Title */}
+        <span
+          style={{
+            flex: 1,
+            fontSize: "13px",
+            fontWeight: 600,
+            lineHeight: "90%",
+            letterSpacing: "-0.02em",
+            color: "#727272",
+            fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+          }}
+        >
+          {title}
+        </span>
+
+        {/* Add button — fades in when open */}
+        {actionLabel && onAction && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAction(); }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "3px",
+              background: "none",
+              border: "none",
+              cursor: isOpen ? "pointer" : "default",
+              fontSize: "11px",
+              fontWeight: 600,
+              color: "#028FF4",
+              fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+              letterSpacing: "-0.02em",
+              padding: 0,
+              flexShrink: 0,
+              opacity: isOpen ? 1 : 0,
+              pointerEvents: isOpen ? "auto" : "none",
+              transition: "opacity 0.2s ease",
+            }}
+          >
+            <Plus size={10} strokeWidth={2.5} />
+            {actionLabel}
+          </button>
+        )}
+
+        {/* Chevron */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            color: "#B0B0B0",
+            flexShrink: 0,
+            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.25s ease",
           }}
         >
-          <span
-            style={{
-              fontSize: "14px",
-              lineHeight: "90%",
-              letterSpacing: "-0.02em",
-              color: "#727272",
-              fontWeight: 600,
-              fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-            }}
-          >
-            {title}
-          </span>
-          {actionLabel && onAction && (
-            <button
-              onClick={onAction}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "3px",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontSize: "11px",
-                fontWeight: 600,
-                color: "#028FF4",
-                fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-                letterSpacing: "-0.02em",
-                padding: 0,
-              }}
-            >
-              <Plus size={10} strokeWidth={2.5} />
-              {actionLabel}
-            </button>
-          )}
+          <ChevronDown size={15} strokeWidth={2} />
         </div>
-        <div style={{ height: "1px", backgroundColor: "#EDEDED", alignSelf: "stretch" }} />
       </div>
 
-      {/* Fields container */}
+      {/* Animated expand/collapse via grid-template-rows */}
       <div
         style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-          padding: "16px",
-          borderRadius: "12px",
-          outline: "1px solid #F0F0F0",
-          backgroundColor: "#FFFFFF",
+          display: "grid",
+          gridTemplateRows: isOpen ? "1fr" : "0fr",
+          transition: "grid-template-rows 0.28s ease",
         }}
       >
-        {children}
+        <div style={{ overflow: "hidden" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "0 16px 16px" }}>
+              <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+                padding: "16px",
+                borderRadius: "12px",
+                border: "1px solid #F0F0F0",
+                backgroundColor: "#FFFFFF",
+              }}
+            >
+              {children}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -143,10 +252,110 @@ export default function BuilderPage() {
   const [jdFocused, setJdFocused] = useState(false);
   const [exporting, setExporting] = useState(false);
 
+  const [openSection, setOpenSection] = useState<SectionId | null>("personalInfo");
+  const [sectionOrder, setSectionOrder] = useState<SectionId[]>(DEFAULT_ORDER);
+  const [dragState, setDragState] = useState<DragState | null>(null);
+
+  // Stores a ref to each rendered card DOM node
+  const cardRefs = useRef<Map<SectionId, HTMLDivElement>>(new Map());
+
   function update<K extends keyof Resume>(key: K, value: Resume[K]) {
     setResume((r) => ({ ...r, [key]: value }));
   }
 
+  function toggleSection(id: SectionId) {
+    setOpenSection((prev) => (prev === id ? null : id));
+  }
+
+  // ── Drag: compute which index the pointer is hovering ───────────────────────
+  const computeHoverIndex = useCallback(
+    (pointerY: number, draggingId: SectionId): number => {
+      const orderWithout = sectionOrder.filter((id) => id !== draggingId);
+      // Find the first card whose midpoint (+ 12 px offset) is below the pointer
+      for (let i = 0; i < orderWithout.length; i++) {
+        const el = cardRefs.current.get(orderWithout[i]);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2 + 12; // 12 px Y-axis offset
+        if (pointerY < mid) return i;
+      }
+      return orderWithout.length;
+    },
+    [sectionOrder]
+  );
+
+  // ── Drag: pointer down on grip ─────────────────────────────────────────────
+  function handleGripPointerDown(id: SectionId, e: React.PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+
+    const el = cardRefs.current.get(id);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const fromIndex = sectionOrder.indexOf(id);
+
+    setDragState({
+      id,
+      fromIndex,
+      hoverIndex: fromIndex,
+      startPointerY: e.clientY,
+      currentPointerY: e.clientY,
+      cardTop: rect.top,
+      cardLeft: rect.left,
+      cardWidth: rect.width,
+      cardHeight: rect.height,
+    });
+  }
+
+  // ── Drag: pointer move ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!dragState) return;
+
+    function onMove(e: PointerEvent) {
+      setDragState((prev) => {
+        if (!prev) return null;
+        const hoverIndex = computeHoverIndex(e.clientY, prev.id);
+        return { ...prev, currentPointerY: e.clientY, hoverIndex };
+      });
+    }
+
+    function onUp() {
+      setDragState((prev) => {
+        if (!prev) return null;
+        // Commit reorder
+        setSectionOrder((order) => {
+          const next = order.filter((id) => id !== prev.id);
+          next.splice(prev.hoverIndex, 0, prev.id);
+          return next;
+        });
+        return null;
+      });
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [dragState, computeHoverIndex]);
+
+  // ── Build display list (order + placeholder slot) ──────────────────────────
+  type DisplayItem = SectionId | "__placeholder__";
+  const displayList: DisplayItem[] = dragState
+    ? (() => {
+        const without = sectionOrder.filter((id) => id !== dragState.id);
+        without.splice(dragState.hoverIndex, 0, "__placeholder__" as SectionId);
+        return without as DisplayItem[];
+      })()
+    : sectionOrder;
+
+  // ── Floating clone position ────────────────────────────────────────────────
+  const floatingTop = dragState
+    ? dragState.cardTop + (dragState.currentPointerY - dragState.startPointerY)
+    : 0;
+
+  // ── Export ─────────────────────────────────────────────────────────────────
   async function handleExport() {
     setExporting(true);
     try {
@@ -164,6 +373,86 @@ export default function BuilderPage() {
     }
   }
 
+  // ── Render a single section card ───────────────────────────────────────────
+  function renderCard(id: SectionId, ghost = false) {
+    const isOpen = !ghost && openSection === id;
+    const toggle = () => toggleSection(id);
+    const onGrip = (e: React.PointerEvent<HTMLDivElement>) => handleGripPointerDown(id, e);
+    const ref = (el: HTMLDivElement | null) => {
+      if (el) cardRefs.current.set(id, el);
+      else cardRefs.current.delete(id);
+    };
+
+    const sharedProps = { isOpen, onToggle: toggle, onGripPointerDown: onGrip, ghost, cardRef: ref };
+
+    switch (id) {
+      case "personalInfo":
+        return (
+          <SectionCard key={ghost ? `${id}-ghost` : id} title="Personal Info" {...sharedProps}>
+            <PersonalInfoSection
+              data={resume.personalInfo}
+              onChange={(v) => update("personalInfo", v)}
+            />
+          </SectionCard>
+        );
+      case "summary":
+        return (
+          <SectionCard key={ghost ? `${id}-ghost` : id} title="Summary" {...sharedProps}>
+            <SummarySection value={resume.summary ?? ""} onChange={(v) => update("summary", v)} />
+          </SectionCard>
+        );
+      case "experience":
+        return (
+          <SectionCard
+            key={ghost ? `${id}-ghost` : id}
+            title="Experience"
+            actionLabel="Add Experience"
+            onAction={() => update("experience", [...resume.experience, newExperience()])}
+            {...sharedProps}
+          >
+            <ExperienceSection
+              entries={resume.experience}
+              onChange={(v) => update("experience", v)}
+              hideAddButton
+            />
+          </SectionCard>
+        );
+      case "education":
+        return (
+          <SectionCard
+            key={ghost ? `${id}-ghost` : id}
+            title="Education"
+            actionLabel="Add Education"
+            onAction={() => update("education", [...resume.education, newEducation()])}
+            {...sharedProps}
+          >
+            <EducationSection
+              entries={resume.education}
+              onChange={(v) => update("education", v)}
+              hideAddButton
+            />
+          </SectionCard>
+        );
+      case "skills":
+        return (
+          <SectionCard
+            key={ghost ? `${id}-ghost` : id}
+            title="Skills"
+            actionLabel="Add Skill Group"
+            onAction={() => update("skills", [...resume.skills, newSkillGroup()])}
+            {...sharedProps}
+          >
+            <SkillsSection
+              groups={resume.skills}
+              onChange={(v) => update("skills", v)}
+              hideAddButton
+            />
+          </SectionCard>
+        );
+    }
+  }
+
+  // ── JSX ───────────────────────────────────────────────────────────────────
   return (
     <div
       style={{
@@ -187,23 +476,11 @@ export default function BuilderPage() {
           overflow: "hidden",
         }}
       >
-        {/* Logo */}
         <div style={{ alignSelf: "flex-start" }}>
           <MebbleLogo />
         </div>
-
-        {/* Spacer */}
         <div style={{ flex: 1 }} />
-
-        {/* JD area at bottom */}
-        <div
-          style={{
-            alignSelf: "stretch",
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
-          }}
-        >
+        <div style={{ alignSelf: "stretch", display: "flex", flexDirection: "column", gap: "16px" }}>
           <p
             style={{
               fontSize: "13px",
@@ -214,12 +491,9 @@ export default function BuilderPage() {
               margin: 0,
             }}
           >
-            Your uploaded resume is currently in display. To get a well
-            optimized Resume for your application, kindly paste or send the job
-            requirements.
+            Your uploaded resume is currently in display. To get a well optimized Resume for your
+            application, kindly paste or send the job requirements.
           </p>
-
-          {/* JD input card */}
           <div
             style={{
               backgroundColor: "#FFFFFF",
@@ -279,24 +553,11 @@ export default function BuilderPage() {
                 </span>
               </button>
             )}
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <SlidersHorizontal size={14} color="#727272" />
               <button
                 onClick={() => {}}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 0,
-                  display: "flex",
-                }}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}
               >
                 <Send size={14} color="#727272" />
               </button>
@@ -317,16 +578,8 @@ export default function BuilderPage() {
           overflow: "hidden",
         }}
       >
-        {/* ── Inline header ────────────────────────────────────────────────── */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            flexShrink: 0,
-          }}
-        >
-          {/* Left: title badge + dot */}
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
           <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "8px" }}>
             <div
               style={{
@@ -337,15 +590,7 @@ export default function BuilderPage() {
                 alignItems: "center",
               }}
             >
-              <span
-                style={{
-                  fontSize: "14px",
-                  lineHeight: "160%",
-                  letterSpacing: "-0.02em",
-                  color: "#727272",
-                  fontWeight: 600,
-                }}
-              >
+              <span style={{ fontSize: "14px", lineHeight: "160%", letterSpacing: "-0.02em", color: "#727272", fontWeight: 600 }}>
                 Resume builder
               </span>
             </div>
@@ -362,19 +607,10 @@ export default function BuilderPage() {
                 cursor: "pointer",
               }}
             >
-              <span
-                style={{
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "9999px",
-                  backgroundColor: "#FF7512",
-                  display: "inline-block",
-                }}
-              />
+              <span style={{ width: "8px", height: "8px", borderRadius: "9999px", backgroundColor: "#FF7512", display: "inline-block" }} />
             </div>
           </div>
 
-          {/* Download button */}
           <button
             onClick={handleExport}
             disabled={exporting}
@@ -394,31 +630,16 @@ export default function BuilderPage() {
               flexShrink: 0,
             }}
           >
-            <span
-              style={{
-                fontSize: "14px",
-                lineHeight: "120%",
-                color: "#028FF4",
-                fontWeight: 600,
-                letterSpacing: "-0.02em",
-              }}
-            >
+            <span style={{ fontSize: "14px", lineHeight: "120%", color: "#028FF4", fontWeight: 600, letterSpacing: "-0.02em" }}>
               {exporting ? "Exporting…" : "Download"}
             </span>
             <Download size={14} color="#028FF4" strokeWidth={2} />
           </button>
         </div>
 
-        {/* ── Content row ──────────────────────────────────────────────────── */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            overflow: "hidden",
-            gap: 0,
-          }}
-        >
-          {/* Center: resume preview */}
+        {/* Content row */}
+        <div style={{ flex: 1, display: "flex", overflow: "hidden", gap: 0 }}>
+          {/* Resume preview */}
           <div
             style={{
               flex: 1,
@@ -444,78 +665,46 @@ export default function BuilderPage() {
             </div>
           </div>
 
-          {/* Right panel: stacked section cards */}
+          {/* Right panel */}
           <div
             style={{
-              width: "331px",
+              width: "340px",
               flexShrink: 0,
               overflowY: "auto",
               display: "flex",
               flexDirection: "column",
-              gap: "16px",
+              gap: "10px",
               paddingLeft: "32px",
+              // Prevent text selection during drag
+              userSelect: dragState ? "none" : "auto",
             }}
           >
-            {/* Personal Info */}
-            <SectionCard title="Personal Info">
-              <PersonalInfoSection
-                data={resume.personalInfo}
-                onChange={(v) => update("personalInfo", v)}
-              />
-            </SectionCard>
+            {displayList.map((item, idx) =>
+              item === "__placeholder__" ? (
+                <DropPlaceholder key="__placeholder__" height={dragState!.cardHeight} />
+              ) : (
+                renderCard(item as SectionId, dragState?.id === item)
+              )
+            )}
 
-            {/* Summary */}
-            <SectionCard title="Summary">
-              <SummarySection
-                value={resume.summary ?? ""}
-                onChange={(v) => update("summary", v)}
-              />
-            </SectionCard>
-
-            {/* Experience */}
-            <SectionCard
-              title="Experience"
-              actionLabel="Add Experience"
-              onAction={() =>
-                update("experience", [...resume.experience, newExperience()])
-              }
-            >
-              <ExperienceSection
-                entries={resume.experience}
-                onChange={(v) => update("experience", v)}
-                hideAddButton
-              />
-            </SectionCard>
-
-            {/* Education */}
-            <SectionCard
-              title="Education"
-              actionLabel="Add Education"
-              onAction={() =>
-                update("education", [...resume.education, newEducation()])
-              }
-            >
-              <EducationSection
-                entries={resume.education}
-                onChange={(v) => update("education", v)}
-                hideAddButton
-              />
-            </SectionCard>
-
-            {/* Skills */}
-            <SectionCard
-              title="Skills"
-              actionLabel="Add Skill Group"
-              onAction={() =>
-                update("skills", [...resume.skills, newSkillGroup()])
-              }
-            >
-              <SkillsSection
-                groups={resume.skills}
-                onChange={(v) => update("skills", v)}
-                hideAddButton
-              />
-            </SectionCard>
+            {/* Floating clone that follows the cursor */}
+            {dragState && (
+              <div
+                style={{
+                  position: "fixed",
+                  top: floatingTop,
+                  left: dragState.cardLeft,
+                  width: dragState.cardWidth,
+                  zIndex: 1000,
+                  pointerEvents: "none",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+                  borderRadius: "16px",
+                  opacity: 0.97,
+                }}
+              >
+                {renderCard(dragState.id)}
+              </div>
+            )}
           </div>
         </div>
       </div>

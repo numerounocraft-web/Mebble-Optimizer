@@ -90,18 +90,14 @@ export default function EducationSection({ entries, onChange, hideAddButton }: P
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {entries.map((entry, idx) => (
         <div
           key={entry.id}
           style={{
-            border: "1px solid #F0F0F0",
-            borderRadius: "10px",
-            padding: "12px",
             display: "flex",
             flexDirection: "column",
-            gap: "10px",
-            backgroundColor: "#FAFAFA",
+            gap: "24px",
           }}
         >
           <div

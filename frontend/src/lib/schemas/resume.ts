@@ -1,12 +1,18 @@
 import { z } from "zod";
 
+export const ResumeLinkSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  url: z.string(),
+});
+export type ResumeLink = z.infer<typeof ResumeLinkSchema>;
+
 export const PersonalInfoSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(1, "Phone is required"),
   location: z.string().min(1, "Location is required"),
-  linkedin: z.string().url("Invalid LinkedIn URL").optional().or(z.literal("")),
-  website: z.string().url("Invalid website URL").optional().or(z.literal("")),
+  links: z.array(ResumeLinkSchema).default([]),
 });
 
 export const ExperienceEntrySchema = z.object({
@@ -75,8 +81,10 @@ export const EMPTY_RESUME: Resume = {
     email: "",
     phone: "",
     location: "",
-    linkedin: "",
-    website: "",
+    links: [
+      { id: "default-linkedin", label: "LinkedIn", url: "" },
+      { id: "default-portfolio", label: "Portfolio", url: "" },
+    ],
   },
   summary: "",
   experience: [],

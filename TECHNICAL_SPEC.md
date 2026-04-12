@@ -5,11 +5,15 @@
 ### 1.1 Frontend
 | Component | Technology | Reason |
 |-----------|------------|--------|
-| Framework | React + Vite | Fast setup, modern, component-based |
-| Styling | Tailwind CSS | Rapid UI development, responsive |
-| State Management | React useState/useEffect | Simple, sufficient for MVP |
-| PDF Parsing | pdf-parse | Pure JS, easy to integrate |
+| Framework | Next.js 16 (App Router) | File-based routing, SSR ready |
+| Language | TypeScript | Type safety across the codebase |
+| UI Library | React 19 | Latest concurrent features |
+| Styling | Tailwind CSS v4 | Rapid UI development, responsive |
+| Validation | Zod | Runtime schema validation + inferred TS types |
+| State Management | React useState/useCallback | Simple, sufficient for MVP |
 | HTTP Client | Axios | Simple API calls |
+| Icons | Lucide React | Consistent icon set |
+| Font | Geist | Clean, modern typography |
 
 ### 1.2 Backend
 | Component | Technology | Reason |
@@ -64,19 +68,22 @@
 
 ```
 src/
+├── app/
+│   ├── layout.tsx           # Root layout
+│   ├── page.tsx             # Landing page (/)
+│   ├── builder/page.tsx     # Resume builder (/builder)
+│   └── optimize/page.tsx    # ATS optimizer (/optimize)
 ├── components/
-│   ├── UploadArea.jsx       # Drag & drop PDF upload
-│   ├── JobDescriptionInput.jsx  # Text area for JD
-│   ├── AnalysisResults.jsx  # Results dashboard
-│   ├── ATScore.jsx         # ATS score display
-│   ├── KeywordMatch.jsx    # Keyword analysis display
-│   ├── ActionWords.jsx     # Action words suggestions
-│   └── ReportDownload.jsx  # Download button
-├── services/
-│   └── api.js              # API calls to backend
-├── App.jsx                 # Main app component
-├── main.jsx                # Entry point
-└── index.css               # Global styles
+│   ├── builder/
+│   │   ├── ResumePreview.tsx         # Live resume render
+│   │   └── sections/                # PersonalInfo, Summary, Experience, Education, Skills
+│   ├── optimizer/
+│   │   ├── ArcGauge.tsx             # ATS score arc
+│   │   └── KeywordPills.tsx         # Keyword pills
+│   └── ui/                          # Button, Card, Input, Loader, MebbleLogo
+└── lib/
+    ├── api.ts               # API calls to backend
+    └── schemas/resume.ts    # Zod ResumeSchema + types
 ```
 
 ### 3.2 Backend Endpoints
@@ -262,7 +269,7 @@ python app.py
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev   # starts at http://localhost:3000
 ```
 
 ---

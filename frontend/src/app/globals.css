@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #020202;
+  --sidebar: #F9F9FB;
+  --border: #F1F1F1;
+  --muted: #767678;
+  --orange: #FF7512;
+  --blue: #028FF4;
+  --green: #01B747;
+  --red: #F70407;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sidebar: var(--sidebar);
+  --color-border-light: var(--border);
+  --color-muted: var(--muted);
+  --color-brand-orange: var(--orange);
+  --color-brand-blue: var(--blue);
+  --color-brand-green: var(--green);
+  --color-brand-red: var(--red);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+textarea::placeholder {
+  color: #767678;
+}
+
+/* ── Scrollbar — thin, subtle, appears only on hover ───────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover {
+  scrollbar-color: #DCDCDC transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background: #DCDCDC;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #BEBEBE;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Glitter sweep — moving shine during optimization */
+@keyframes glitter-sweep {
+  0%   { background-position: -250% center; }
+  100% { background-position: 250% center; }
+}
+
+/* Word shimmer — new action words after optimization */
+@keyframes word-shimmer {
+  0%, 100% {
+    color: #FF7512;
+    text-shadow: none;
+  }
+  40% {
+    color: #FFB347;
+    text-shadow: 0 0 10px rgba(255, 179, 71, 0.55), 0 0 3px rgba(255, 220, 80, 0.4);
+  }
+  60% {
+    color: #FFC966;
+    text-shadow: 0 0 14px rgba(255, 201, 102, 0.6), 0 0 4px rgba(255, 230, 120, 0.35);
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

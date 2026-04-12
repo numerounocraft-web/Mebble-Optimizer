@@ -54,18 +54,17 @@ Resume Optimizer follows a client-server architecture with the following layers:
 
 | Component | File | Responsibility |
 |-----------|------|----------------|
-| App | `App.jsx` | Main container, routing |
-| LandingPage | `LandingPage.jsx` | Welcome, instructions |
-| UploadView | `UploadView.jsx` | PDF upload interface |
-| JobDescriptionInput | `JobDescriptionInput.jsx` | JD text input |
-| AnalysisView | `AnalysisView.jsx` | Results display |
-| ReportView | `ReportView.jsx` | Report download |
-| UploadArea | `UploadArea.jsx` | Drag/drop zone |
-| ATScoreDisplay | `ATScoreDisplay.jsx` | Score visualization |
-| KeywordDisplay | `KeywordDisplay.jsx` | Keywords list |
-| ActionWordsDisplay | `ActionWordsDisplay.jsx` | Action words |
-| Button | `Button.jsx` | Reusable button |
-| Loader | `Loader.jsx` | Loading spinner |
+| Root Layout | `app/layout.tsx` | Geist font, global styles |
+| Landing Page | `app/page.tsx` | Hero, feature cards, CTAs |
+| Builder Page | `app/builder/page.tsx` | Resume builder (3-panel) |
+| Optimizer Page | `app/optimize/page.tsx` | ATS optimizer, PDF upload, results |
+| ResumePreview | `components/builder/ResumePreview.tsx` | Live resume render |
+| Section Editors | `components/builder/sections/` | PersonalInfo, Summary, Experience, Education, Skills |
+| ArcGauge | `components/optimizer/ArcGauge.tsx` | ATS score visualization |
+| KeywordPills | `components/optimizer/KeywordPills.tsx` | Matched/missing keywords |
+| Button | `components/ui/Button.tsx` | Reusable button with variants |
+| Loader | `components/ui/Loader.tsx` | Loading spinner |
+| MebbleLogo | `components/ui/MebbleLogo.tsx` | SVG logo |
 
 ### 2.2 Backend Services
 
@@ -300,24 +299,24 @@ interface AnalysisReport {
 
 ```
 ResumeOptimizer/
-├── frontend/                  # React application
+├── frontend/                  # Next.js application (TypeScript)
 │   ├── public/               # Static assets
 │   ├── src/
-│   │   ├── components/       # React components
-│   │   │   ├── common/       # Shared components
-│   │   │   ├── upload/       # Upload related
-│   │   │   ├── analysis/     # Results related
-│   │   │   └── layout/       # Layout components
-│   │   ├── hooks/            # Custom React hooks
-│   │   ├── services/         # API calls
-│   │   ├── utils/            # Helper functions
-│   │   ├── styles/           # CSS/styles
-│   │   ├── App.jsx           # Main component
-│   │   └── main.jsx          # Entry point
-│   ├── index.html            # HTML template
+│   │   ├── app/              # Next.js App Router
+│   │   │   ├── layout.tsx    # Root layout (Geist font)
+│   │   │   ├── page.tsx      # Landing page (/)
+│   │   │   ├── builder/      # Resume builder (/builder)
+│   │   │   └── optimize/     # ATS optimizer (/optimize)
+│   │   ├── components/
+│   │   │   ├── builder/      # Builder-specific components
+│   │   │   ├── optimizer/    # Optimizer-specific components
+│   │   │   └── ui/           # Shared UI components
+│   │   └── lib/
+│   │       ├── api.ts        # Axios API client
+│   │       └── schemas/      # Zod validation schemas
+│   ├── next.config.ts        # Next.js config (API proxy)
 │   ├── package.json          # Dependencies
-│   ├── vite.config.js        # Vite config
-│   └── tailwind.config.js    # Tailwind config
+│   └── tsconfig.json         # TypeScript config
 │
 ├── backend/                  # Flask application
 │   ├── app.py                # Main Flask app
@@ -345,46 +344,38 @@ ResumeOptimizer/
 
 ```
 frontend/src/
+├── app/                        # Next.js App Router
+│   ├── layout.tsx             # Root layout + Geist fonts
+│   ├── globals.css            # Global styles + CSS variables
+│   ├── page.tsx               # Landing page (/)
+│   ├── builder/
+│   │   └── page.tsx           # Resume builder (/builder)
+│   └── optimize/
+│       └── page.tsx           # ATS optimizer (/optimize)
+│
 ├── components/
-│   ├── common/
-│   │   ├── Button.jsx
-│   │   ├── Loader.jsx
-│   │   ├── Card.jsx
-│   │   └── Input.jsx
-│   │
-│   ├── upload/
-│   │   ├── UploadArea.jsx
-│   │   ├── FilePreview.jsx
-│   │   └── JobDescriptionInput.jsx
-│   │
-│   ├── analysis/
-│   │   ├── ATSScoreDisplay.jsx
-│   │   ├── KeywordMatch.jsx
-│   │   ├── ActionWordsDisplay.jsx
-│   │   ├── ScoreProgressBar.jsx
-│   │   └── SummaryCard.jsx
-│   │
-│   └── layout/
-│       ├── Header.jsx
-│       ├── Footer.jsx
-│       └── Layout.jsx
+│   ├── builder/
+│   │   ├── ResumePreview.tsx  # Live resume renderer
+│   │   └── sections/
+│   │       ├── PersonalInfoSection.tsx
+│   │       ├── SummarySection.tsx
+│   │       ├── ExperienceSection.tsx
+│   │       ├── EducationSection.tsx
+│   │       └── SkillsSection.tsx
+│   ├── optimizer/
+│   │   ├── ArcGauge.tsx       # ATS score arc visualization
+│   │   └── KeywordPills.tsx   # Matched/missing keyword pills
+│   └── ui/
+│       ├── Button.tsx
+│       ├── Card.tsx
+│       ├── Input.tsx
+│       ├── Loader.tsx
+│       └── MebbleLogo.tsx
 │
-├── hooks/
-│   ├── useAnalysis.js
-│   └── useFileUpload.js
-│
-├── services/
-│   └── api.js
-│
-├── utils/
-│   ├── formatters.js
-│   └── validators.js
-│
-├── styles/
-│   └── index.css
-│
-├── App.jsx
-└── main.jsx
+└── lib/
+    ├── api.ts                 # Axios client → Flask backend
+    └── schemas/
+        └── resume.ts          # Zod ResumeSchema + EMPTY_RESUME
 ```
 
 ### 6.3 Backend Structure
@@ -451,7 +442,7 @@ FLASK_APP=app.py
 FLASK_ENV=development
 PORT=5000
 MAX_CONTENT_LENGTH=16777216  # 16MB
-CORS_ORIGINS=http://localhost:5173
+CORS_ORIGINS=http://localhost:3000
 ```
 
 ### 7.2 Constants
@@ -534,7 +525,7 @@ class Config:
 ### 10.3 CORS Configuration
 
 ```
-Allowed Origins: http://localhost:5173 (dev)
+Allowed Origins: http://localhost:3000 (dev)
 Allowed Methods: GET, POST
 Allowed Headers: Content-Type
 ```

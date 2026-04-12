@@ -99,7 +99,7 @@ export default function ExperienceSection({ entries, onChange, hideAddButton }: 
           margin: 0,
         }}
       >
-        No experience entries yet. Use "Add Experience" above.
+        No experience entries yet. Use &ldquo;Add Experience&rdquo; above.
       </p>
     );
   }

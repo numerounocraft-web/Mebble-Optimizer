@@ -7,4 +7,4 @@ class Config:
         'good': 75,
         'great': 90
     }
-    CORS_ORIGINS = ["http://localhost:5173"]
+    CORS_ORIGINS = ["http://localhost:3000"]

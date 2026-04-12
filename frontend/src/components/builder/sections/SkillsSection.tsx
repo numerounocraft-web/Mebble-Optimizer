@@ -61,7 +61,7 @@ export default function SkillsSection({ groups, onChange, hideAddButton }: Props
           margin: 0,
         }}
       >
-        No skill groups yet. Use "Add Skill Group" above.
+        No skill groups yet. Use &ldquo;Add Skill Group&rdquo; above.
       </p>
     );
   }

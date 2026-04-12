@@ -84,7 +84,7 @@ export default function EducationSection({ entries, onChange, hideAddButton }: P
           margin: 0,
         }}
       >
-        No education entries yet. Use "Add Education" above.
+        No education entries yet. Use &ldquo;Add Education&rdquo; above.
       </p>
     );
   }

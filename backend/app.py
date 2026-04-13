@@ -210,5 +210,15 @@ def linkedin_import():
     return jsonify({'success': True, 'data': resume_data})
 
 
+@app.post('/api/linkedin/debug')
+def linkedin_debug():
+    """Return raw extracted lines from a LinkedIn PDF — for diagnosing parser issues."""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded.'}), 400
+    file = request.files['file']
+    lines = linkedin_pdf_parser._extract_lines(file.read())
+    return jsonify({'success': True, 'lines': lines, 'total': len(lines)})
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

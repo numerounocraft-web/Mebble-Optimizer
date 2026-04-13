@@ -5,6 +5,37 @@ import { Plus, Trash2, ChevronDown, ArrowDownUp } from "lucide-react";
 import type { ExperienceEntry } from "@/lib/schemas/resume";
 
 const FONT = "var(--font-geist-sans), system-ui, sans-serif";
+const BORDER = "#F0F0F0";
+
+const inputStyle: React.CSSProperties = {
+  width: "100%", padding: "8px", borderRadius: "8px",
+  border: `1px solid ${BORDER}`, backgroundColor: "transparent",
+  fontSize: "13px", fontWeight: 500, color: "#1F1F1F",
+  fontFamily: FONT, letterSpacing: "-0.02em", lineHeight: "90%",
+  outline: "none", boxSizing: "border-box",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: "13px", lineHeight: "90%", letterSpacing: "-0.02em",
+  color: "#727272", fontWeight: 500, fontFamily: FONT,
+  display: "block", marginBottom: "6px",
+};
+
+function Field({ label, value, placeholder, onChange }: { label: string; value: string; placeholder: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <span style={labelStyle}>{label}</span>
+      <input
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        style={inputStyle}
+        onFocus={(e) => (e.target.style.borderColor = "#FF7512")}
+        onBlur={(e) => (e.target.style.borderColor = BORDER)}
+      />
+    </div>
+  );
+}
 
 function parseJobDate(s: string): number {
   if (!s) return NaN;
@@ -36,25 +67,9 @@ interface Props {
   darkMode?: boolean;
 }
 
-export default function ExperienceSection({ entries, onChange, hideAddButton, darkMode }: Props) {
-  const dm = darkMode ?? false;
-  const borderColor  = dm ? "#2C2C2C" : "#F0F0F0";
-  const labelColor   = dm ? "#888888" : "#727272";
-  const entryCardBg  = dm ? "#1A1A1E" : "#FAFAFA";
-  const entryLabel   = dm ? "#7A7A80" : "#8A8A8A";
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "8px", borderRadius: "8px",
-    border: `1px solid ${borderColor}`, backgroundColor: "transparent",
-    fontSize: "13px", fontWeight: 500, color: dm ? "#EFEFEF" : "#1F1F1F",
-    fontFamily: FONT, letterSpacing: "-0.02em", lineHeight: "90%",
-    outline: "none", boxSizing: "border-box",
-  };
-  const labelStyle: React.CSSProperties = {
-    fontSize: "13px", lineHeight: "90%", letterSpacing: "-0.02em",
-    color: labelColor, fontWeight: 500, fontFamily: FONT,
-    display: "block", marginBottom: "6px",
-  };
+export default function ExperienceSection({ entries, onChange, hideAddButton }: Omit<Props, "darkMode">) {
+  const entryCardBg = "#FAFAFA";
+  const entryLabel  = "#8A8A8A";
 
   const [desiredOpenId, setDesiredOpenId] = useState<string | null>(entries[0]?.id ?? null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -79,21 +94,8 @@ export default function ExperienceSection({ entries, onChange, hideAddButton, da
     updateEntry(entry.id, { bullets: bullets.length ? bullets : [""] });
   }
 
-  function Field({ label, value, placeholder, onChange: onCh }: { label: string; value: string; placeholder: string; onChange: (v: string) => void }) {
-    return (
-      <div>
-        <span style={labelStyle}>{label}</span>
-        <input value={value} placeholder={placeholder} onChange={(e) => onCh(e.target.value)}
-          style={inputStyle}
-          onFocus={(e) => (e.target.style.borderColor = "#FF7512")}
-          onBlur={(e) => (e.target.style.borderColor = borderColor)}
-        />
-      </div>
-    );
-  }
-
   if (entries.length === 0) {
-    return <p style={{ fontSize: "12px", color: dm ? "#555558" : "#C3C3C3", fontFamily: FONT, letterSpacing: "-0.02em", margin: 0 }}>No experience entries yet. Use &ldquo;Add Experience&rdquo; above.</p>;
+    return <p style={{ fontSize: "12px", color: "#C3C3C3", fontFamily: FONT, letterSpacing: "-0.02em", margin: 0 }}>No experience entries yet. Use &ldquo;Add Experience&rdquo; above.</p>;
   }
 
   function renderEntry(entry: ExperienceEntry, idx: number) {
@@ -111,9 +113,9 @@ export default function ExperienceSection({ entries, onChange, hideAddButton, da
           <span style={{ flex: 1, fontSize: "12px", fontWeight: 600, color: entryLabel, letterSpacing: "-0.02em", fontFamily: FONT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
           <button onClick={(e) => { e.stopPropagation(); removeEntry(entry.id); }}
             style={{ background: "none", border: "none", cursor: "pointer", padding: "2px", display: "flex", flexShrink: 0, opacity: hoveredId === entry.id ? 1 : 0, transition: "opacity 0.15s ease", pointerEvents: hoveredId === entry.id ? "auto" : "none" }}>
-            <Trash2 size={12} color={dm ? "#555558" : "#D0D0D0"} />
+            <Trash2 size={12} color="#D0D0D0" />
           </button>
-          <div style={{ display: "flex", alignItems: "center", color: dm ? "#444448" : "#C4C4C4", flexShrink: 0, transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.25s ease" }}>
+          <div style={{ display: "flex", alignItems: "center", color: "#C4C4C4", flexShrink: 0, transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.25s ease" }}>
             <ChevronDown size={13} strokeWidth={2} />
           </div>
         </div>
@@ -131,10 +133,10 @@ export default function ExperienceSection({ entries, onChange, hideAddButton, da
                 </div>
                 <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                   <div onClick={() => updateEntry(entry.id, { current: !entry.current, endDate: "" })}
-                    style={{ width: "15px", height: "15px", borderRadius: "9999px", border: `2px solid ${entry.current ? "#028FF4" : (dm ? "#3A3A3E" : "#D0D0D0")}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "border-color 0.15s ease", boxSizing: "border-box" }}>
+                    style={{ width: "15px", height: "15px", borderRadius: "9999px", border: `2px solid ${entry.current ? "#028FF4" : "#D0D0D0"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "border-color 0.15s ease", boxSizing: "border-box" }}>
                     {entry.current && <div style={{ width: "7px", height: "7px", borderRadius: "9999px", backgroundColor: "#028FF4" }} />}
                   </div>
-                  <span style={{ fontSize: "11px", color: dm ? "#666668" : "#ABABAB", fontWeight: 500, letterSpacing: "-0.02em", fontFamily: FONT }}>Currently here</span>
+                  <span style={{ fontSize: "11px", color: "#ABABAB", fontWeight: 500, letterSpacing: "-0.02em", fontFamily: FONT }}>Currently here</span>
                 </label>
               </div>
               <div>
@@ -146,11 +148,11 @@ export default function ExperienceSection({ entries, onChange, hideAddButton, da
                         onChange={(e) => updateBullet(entry, bIdx, e.target.value)} rows={2}
                         style={{ ...inputStyle, flex: 1, resize: "none", fontSize: "12px", lineHeight: "150%", padding: "6px 8px" }}
                         onFocus={(e) => (e.target.style.borderColor = "#FF7512")}
-                        onBlur={(e) => (e.target.style.borderColor = borderColor)}
+                        onBlur={(e) => (e.target.style.borderColor = BORDER)}
                       />
                       {entry.bullets.length > 1 && (
                         <button onClick={() => removeBullet(entry, bIdx)} style={{ background: "none", border: "none", cursor: "pointer", padding: "6px 2px", flexShrink: 0, display: "flex" }}>
-                          <Trash2 size={11} color={dm ? "#555558" : "#D0D0D0"} />
+                          <Trash2 size={11} color="#D0D0D0" />
                         </button>
                       )}
                     </div>
@@ -171,14 +173,14 @@ export default function ExperienceSection({ entries, onChange, hideAddButton, da
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px", paddingBottom: "4px" }}>
-        <ArrowDownUp size={11} color={dm ? "#444448" : "#C4C4C4"} />
+        <ArrowDownUp size={11} color="#C4C4C4" />
         {(["desc", "asc"] as const).map((dir, i) => (
           <span key={dir} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            {i > 0 && <span style={{ color: dm ? "#333336" : "#D0D0D0", fontSize: "11px" }}>·</span>}
+            {i > 0 && <span style={{ color: "#D0D0D0", fontSize: "11px" }}>·</span>}
             <button onClick={() => applySort(dir)}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: dm ? "#666668" : "#A0A0A0", fontFamily: FONT, letterSpacing: "-0.02em", padding: 0 }}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: "#A0A0A0", fontFamily: FONT, letterSpacing: "-0.02em", padding: 0 }}
               onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#028FF4")}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = dm ? "#666668" : "#A0A0A0")}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#A0A0A0")}
             >{dir === "desc" ? "Newest first" : "Oldest first"}</button>
           </span>
         ))}
@@ -186,7 +188,7 @@ export default function ExperienceSection({ entries, onChange, hideAddButton, da
       {entries.map((entry, idx) => renderEntry(entry, idx))}
       {!hideAddButton && (
         <button onClick={() => onChange([...entries, { id: crypto.randomUUID(), company: "", title: "", location: "", startDate: "", endDate: "", current: false, bullets: [""] }])}
-          style={{ display: "flex", alignItems: "center", gap: "5px", padding: "7px 12px", borderRadius: "9999px", border: `1px solid ${borderColor}`, backgroundColor: dm ? "#1A1A1E" : "#fff", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: dm ? "#EFEFEF" : "#020202", letterSpacing: "-0.02em", fontFamily: FONT, alignSelf: "flex-start", marginTop: "4px" }}>
+          style={{ display: "flex", alignItems: "center", gap: "5px", padding: "7px 12px", borderRadius: "9999px", border: `1px solid ${BORDER}`, backgroundColor: "#fff", cursor: "pointer", fontSize: "11px", fontWeight: 600, color: "#020202", letterSpacing: "-0.02em", fontFamily: FONT, alignSelf: "flex-start", marginTop: "4px" }}>
           <Plus size={12} strokeWidth={2.5} /> Add Experience
         </button>
       )}

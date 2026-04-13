@@ -8,8 +8,6 @@ import {
   ChevronDown,
   GripVertical,
   Settings,
-  Moon,
-  Sun,
   Share2,
   Check,
 } from "lucide-react";
@@ -83,14 +81,14 @@ function newSkillGroup(): SkillGroup {
 }
 
 // ── Drop placeholder ──────────────────────────────────────────────────────────
-function DropPlaceholder({ height, darkMode }: { height: number; darkMode?: boolean }) {
+function DropPlaceholder({ height }: { height: number }) {
   return (
     <div
       style={{
         height: `${height}px`,
         borderRadius: "16px",
-        border: `2px dashed ${darkMode ? "#383838" : "#D4D4D4"}`,
-        backgroundColor: darkMode ? "#1A1A1A" : "#F4F4F6",
+        border: "2px dashed #D4D4D4",
+        backgroundColor: "#F4F4F6",
         flexShrink: 0,
         transition: "all 0.15s ease",
       }}
@@ -109,7 +107,6 @@ function SectionCard({
   onGripPointerDown,
   ghost,
   cardRef,
-  darkMode,
 }: {
   title: string;
   actionLabel?: string;
@@ -120,14 +117,12 @@ function SectionCard({
   onGripPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void;
   ghost?: boolean;
   cardRef?: (el: HTMLDivElement | null) => void;
-  darkMode?: boolean;
 }) {
-  const dm = darkMode ?? false;
   return (
     <div
       ref={cardRef}
       style={{
-        backgroundColor: dm ? "#161619" : "#F9F9FB",
+        backgroundColor: "#F9F9FB",
         borderRadius: "16px",
         display: "flex",
         flexDirection: "column",
@@ -155,7 +150,7 @@ function SectionCard({
           style={{
             display: "flex",
             alignItems: "center",
-            color: dm ? "#444444" : "#C4C4C4",
+            color: "#C4C4C4",
             cursor: "grab",
             flexShrink: 0,
             touchAction: "none",
@@ -172,7 +167,7 @@ function SectionCard({
             fontWeight: 600,
             lineHeight: "90%",
             letterSpacing: "-0.02em",
-            color: dm ? "#9A9A9A" : "#727272",
+            color: "#727272",
             fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
           }}
         >
@@ -212,7 +207,7 @@ function SectionCard({
           style={{
             display: "flex",
             alignItems: "center",
-            color: dm ? "#555555" : "#B0B0B0",
+            color: "#B0B0B0",
             flexShrink: 0,
             transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
             transition: "transform 0.25s ease",
@@ -239,8 +234,8 @@ function SectionCard({
                 gap: "16px",
                 padding: "16px",
                 borderRadius: "12px",
-                border: `1px solid ${dm ? "#2C2C2C" : "#F0F0F0"}`,
-                backgroundColor: dm ? "#161619" : "#FFFFFF",
+                border: "1px solid #F0F0F0",
+                backgroundColor: "#FFFFFF",
               }}
             >
               {children}
@@ -264,7 +259,6 @@ export default function BuilderPage() {
   const [dragState, setDragState] = useState<DragState | null>(null);
 
   // Navbar state
-  const [darkMode,          setDarkMode]          = useState(false);
   const [settingsOpen,      setSettingsOpen]      = useState(false);
   const [settingsClosing,   setSettingsClosing]   = useState(false);
   const [selectedTemplate,  setSelectedTemplate]  = useState(0);
@@ -292,21 +286,20 @@ export default function BuilderPage() {
 
   // ── Theme ─────────────────────────────────────────────────────────────────
   const t = {
-    bg:               darkMode ? "#121214" : "#FFFFFF",
-    surface:          darkMode ? "#1E1E1E" : "#F9F9FB",
-    surfaceRaised:    darkMode ? "#161619" : "#FFFFFF",
-    navBg:            darkMode ? "#121214" : "#FFFFFF",
-    border:           darkMode ? "#2C2C2C" : "#F1F1F1",
-    borderMid:        darkMode ? "#2C2C2C" : "#F0F0F0",
-    textPrimary:      darkMode ? "#EFEFEF" : "#1F1F1F",
-    textSecondary:    darkMode ? "#888888" : "#767678",
-    textMuted:        darkMode ? "#606060" : "#727272",
-    resumeBg:         darkMode ? "#161619" : "#F9F9FB",
-    resumeBorder:     darkMode ? "#2C2C2C" : "#F0F0F0",
-    dropdownBg:       darkMode ? "#1C1C1C" : "#FFFFFF",
-    dropdownShadow:   darkMode ? "0 8px 32px rgba(0,0,0,0.55)" : "0 8px 32px rgba(0,0,0,0.10)",
-    iconColor:        darkMode ? "#888888" : "#727272",
-    settingsActiveBg: darkMode ? "#252525" : "#F1F1F1",
+    bg:               "#FFFFFF",
+    surface:          "#F9F9FB",
+    surfaceRaised:    "#FFFFFF",
+    navBg:            "#FFFFFF",
+    border:           "#F1F1F1",
+    borderMid:        "#F0F0F0",
+    textPrimary:      "#1F1F1F",
+    textSecondary:    "#767678",
+    textMuted:        "#727272",
+    resumeBorder:     "#F0F0F0",
+    dropdownBg:       "#FFFFFF",
+    dropdownShadow:   "0 8px 32px rgba(0,0,0,0.10)",
+    iconColor:        "#727272",
+    settingsActiveBg: "#F1F1F1",
   };
 
   // Stores a ref to each rendered card DOM node
@@ -436,7 +429,7 @@ export default function BuilderPage() {
       else cardRefs.current.delete(id);
     };
 
-    const sharedProps = { isOpen, onToggle: toggle, onGripPointerDown: onGrip, ghost, cardRef: ref, darkMode };
+    const sharedProps = { isOpen, onToggle: toggle, onGripPointerDown: onGrip, ghost, cardRef: ref };
 
     switch (id) {
       case "personalInfo":
@@ -445,14 +438,13 @@ export default function BuilderPage() {
             <PersonalInfoSection
               data={resume.personalInfo}
               onChange={(v) => update("personalInfo", v)}
-              darkMode={darkMode}
             />
           </SectionCard>
         );
       case "summary":
         return (
           <SectionCard key={ghost ? `${id}-ghost` : id} title="Summary" {...sharedProps}>
-            <SummarySection value={resume.summary ?? ""} onChange={(v) => update("summary", v)} darkMode={darkMode} />
+            <SummarySection value={resume.summary ?? ""} onChange={(v) => update("summary", v)} />
           </SectionCard>
         );
       case "experience":
@@ -468,7 +460,6 @@ export default function BuilderPage() {
               entries={resume.experience}
               onChange={(v) => update("experience", v)}
               hideAddButton
-              darkMode={darkMode}
             />
           </SectionCard>
         );
@@ -485,7 +476,6 @@ export default function BuilderPage() {
               entries={resume.education}
               onChange={(v) => update("education", v)}
               hideAddButton
-              darkMode={darkMode}
             />
           </SectionCard>
         );
@@ -502,7 +492,6 @@ export default function BuilderPage() {
               groups={resume.skills}
               onChange={(v) => update("skills", v)}
               hideAddButton
-              darkMode={darkMode}
             />
           </SectionCard>
         );
@@ -521,19 +510,8 @@ export default function BuilderPage() {
         0%   { opacity: 1; transform: scale(1); }
         100% { opacity: 0; transform: scale(0.88); }
       }
-      [data-dark="true"] input,
-      [data-dark="true"] textarea {
-        color: #EFEFEF !important;
-        caret-color: #EFEFEF;
-      }
-      [data-dark="true"] input::placeholder,
-      [data-dark="true"] textarea::placeholder {
-        color: #4A4A4E !important;
-        opacity: 1;
-      }
     `}</style>
     <div
-      data-dark={String(darkMode)}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -562,27 +540,6 @@ export default function BuilderPage() {
 
         {/* Right: actions */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-
-          {/* Dark mode toggle */}
-          <button
-            onClick={() => setDarkMode((d) => !d)}
-            style={{
-              width: "34px",
-              height: "34px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: "8px",
-              border: "none",
-              backgroundColor: "transparent",
-              cursor: "pointer",
-            }}
-          >
-            {darkMode
-              ? <Sun  size={16} color={t.iconColor} strokeWidth={1.8} />
-              : <Moon size={16} color={t.iconColor} strokeWidth={1.8} />
-            }
-          </button>
 
           {/* Settings — opens template + colour dropdown */}
           <div ref={settingsRef} style={{ position: "relative" }}>
@@ -772,7 +729,7 @@ export default function BuilderPage() {
               padding: "0 14px",
               borderRadius: "9999px",
               border: "none",
-              backgroundColor: darkMode ? "#171B1D" : "#E4F3FE",
+              backgroundColor: "#E4F3FE",
               cursor: exporting ? "default" : "pointer",
               fontFamily: "inherit",
             }}
@@ -829,6 +786,7 @@ export default function BuilderPage() {
               display: "flex",
               flexDirection: "column",
               gap: "12px",
+              marginTop: "auto",
             }}
           >
             {jdFocused || jdText ? (
@@ -906,8 +864,8 @@ export default function BuilderPage() {
             style={{
               width: "100%",
               maxWidth: "657px",
-              backgroundColor: t.resumeBg,
-              borderRadius: "16px",
+              backgroundColor: "#FFFFFF",
+              borderRadius: "20px",
               border: `1px solid ${t.resumeBorder}`,
               minHeight: "731px",
               flexShrink: 0,
@@ -934,7 +892,7 @@ export default function BuilderPage() {
         >
           {displayList.map((item) =>
             item === "__placeholder__" ? (
-              <DropPlaceholder key="__placeholder__" height={dragState!.cardHeight} darkMode={darkMode} />
+              <DropPlaceholder key="__placeholder__" height={dragState!.cardHeight} />
             ) : (
               renderCard(item as SectionId, dragState?.id === item)
             )

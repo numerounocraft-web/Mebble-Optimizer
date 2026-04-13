@@ -871,7 +871,7 @@ export default function BuilderPage() {
               flexShrink: 0,
             }}
           >
-            <ResumePreview resume={resume} template={selectedTemplate} accentColor={selectedColor} />
+            <ResumePreview resume={resume} template={selectedTemplate} accentColor={selectedColor} sectionOrder={sectionOrder} />
           </div>
         </div>
 

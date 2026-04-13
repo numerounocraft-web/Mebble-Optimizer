@@ -2,10 +2,15 @@
 
 import type { Resume } from "@/lib/schemas/resume";
 
+type SectionId = "personalInfo" | "summary" | "experience" | "education" | "skills";
+
+const DEFAULT_ORDER: SectionId[] = ["personalInfo", "summary", "experience", "education", "skills"];
+
 interface Props {
   resume: Resume;
-  template?: number;      // 0 = Classic, 1 = Two-Column, 2 = Modern Sidebar
-  accentColor?: string;   // link / accent color
+  template?: number;
+  accentColor?: string;
+  sectionOrder?: SectionId[];
 }
 
 const FONT = '"Geist", var(--font-geist-sans), system-ui, sans-serif';
@@ -48,7 +53,7 @@ function EmptyState() {
   );
 }
 
-/* ── Shared helpers ─────────────────────────────────────────────────────────── */
+/* ── Contact items ──────────────────────────────────────────────────────────── */
 type ContactItem =
   | { kind: "text"; value: string }
   | { kind: "link"; label: string; url: string };
@@ -79,121 +84,138 @@ function SectionHeader0({ title }: { title: string }) {
   );
 }
 
-function Template0({ resume, accent }: { resume: Resume; accent: string }) {
+function Template0({ resume, accent, sectionOrder }: { resume: Resume; accent: string; sectionOrder: SectionId[] }) {
   const { personalInfo, summary, experience, education, skills } = resume;
   const contactItems = buildContactItems(resume);
 
+  function renderSection(id: SectionId) {
+    switch (id) {
+      case "personalInfo":
+        if (!personalInfo.name && contactItems.length === 0) return null;
+        return (
+          <div key="personalInfo" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {personalInfo.name && (
+              <span style={{ fontSize: "24px", lineHeight: "120%", letterSpacing: "-0.03em", color: "#1F1F1F", fontWeight: 700, fontFamily: FONT }}>
+                {personalInfo.name}
+              </span>
+            )}
+            {contactItems.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}>
+                {contactItems.map((item, i) => (
+                  <span key={i} style={{ ...body(), display: "flex", alignItems: "center" }}>
+                    {i > 0 && <span style={{ margin: "0 8px", color: "#C8C8C8" }}>|</span>}
+                    {item.kind === "link"
+                      ? <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ ...body(accent), textDecoration: "none" }}>{item.label}</a>
+                      : item.value}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case "summary":
+        if (!summary) return null;
+        return (
+          <div key="summary" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <SectionHeader0 title="Professional Summary" />
+            <p style={body()}>{summary}</p>
+          </div>
+        );
+
+      case "experience":
+        if (experience.length === 0) return null;
+        return (
+          <div key="experience" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <SectionHeader0 title="Professional Experience" />
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {experience.map((exp) => (
+                <div key={exp.id} style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "16px" }}>
+                    <span style={{ fontSize: "13px", lineHeight: "160%", letterSpacing: "-0.02em", color: "#1F1F1F", fontWeight: 600, fontFamily: FONT }}>
+                      {exp.title || "Job Title"}
+                      {exp.company && <span style={{ fontWeight: 500, color: "#767678" }}> — {exp.company}</span>}
+                    </span>
+                    {(exp.startDate || exp.endDate || exp.current) && (
+                      <span style={{ ...body(), whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {exp.startDate}{exp.startDate && (exp.current || exp.endDate) ? " – " : ""}{exp.current ? "Present" : exp.endDate}
+                      </span>
+                    )}
+                  </div>
+                  {exp.location && <p style={body()}>{exp.location}</p>}
+                  {exp.bullets.filter(Boolean).length > 0 && (
+                    <ul style={{ margin: "4px 0 0 0", paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "2px", listStyleType: "disc" }}>
+                      {exp.bullets.filter(Boolean).map((b, bi) => (
+                        <li key={bi} style={{ ...body(), display: "list-item" }}>{b}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case "education":
+        if (education.length === 0) return null;
+        return (
+          <div key="education" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <SectionHeader0 title="Education" />
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {education.map((edu) => (
+                <div key={edu.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "16px" }}>
+                    <span style={{ fontSize: "13px", lineHeight: "160%", letterSpacing: "-0.02em", color: "#1F1F1F", fontWeight: 600, fontFamily: FONT }}>
+                      {edu.institution || "Institution"}
+                    </span>
+                    {(edu.startDate || edu.endDate) && (
+                      <span style={{ ...body(), whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {edu.startDate}{edu.startDate && edu.endDate ? " – " : ""}{edu.endDate}
+                      </span>
+                    )}
+                  </div>
+                  <p style={body()}>
+                    {[edu.degree, edu.field].filter(Boolean).join(", ")}
+                    {edu.gpa && <span> · GPA: {edu.gpa}</span>}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case "skills":
+        if (skills.length === 0) return null;
+        return (
+          <div key="skills" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <SectionHeader0 title="Core Competencies" />
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              {skills.map((group) => (
+                <p key={group.id} style={body()}>
+                  {group.category && <span style={{ fontWeight: 600, color: "#1F1F1F" }}>{group.category}: </span>}
+                  {group.items.join(", ")}
+                </p>
+              ))}
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  }
+
   return (
     <div style={{ fontFamily: FONT, padding: "32px", display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Name + Contact */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-        {personalInfo.name && (
-          <span style={{ fontSize: "24px", lineHeight: "120%", letterSpacing: "-0.03em", color: "#1F1F1F", fontWeight: 700, fontFamily: FONT }}>
-            {personalInfo.name}
-          </span>
-        )}
-        {contactItems.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}>
-            {contactItems.map((item, i) => (
-              <span key={i} style={{ ...body(), display: "flex", alignItems: "center" }}>
-                {i > 0 && <span style={{ margin: "0 8px", color: "#C8C8C8" }}>|</span>}
-                {item.kind === "link"
-                  ? <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ ...body(accent), textDecoration: "none" }}>{item.label}</a>
-                  : item.value}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Summary */}
-      {summary && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <SectionHeader0 title="Professional Summary" />
-          <p style={body()}>{summary}</p>
-        </div>
-      )}
-
-      {/* Experience */}
-      {experience.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <SectionHeader0 title="Professional Experience" />
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            {experience.map((exp) => (
-              <div key={exp.id} style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "16px" }}>
-                  <span style={{ fontSize: "13px", lineHeight: "160%", letterSpacing: "-0.02em", color: "#1F1F1F", fontWeight: 600, fontFamily: FONT }}>
-                    {exp.title || "Job Title"}
-                    {exp.company && <span style={{ fontWeight: 500, color: "#767678" }}> — {exp.company}</span>}
-                  </span>
-                  {(exp.startDate || exp.endDate || exp.current) && (
-                    <span style={{ ...body(), whiteSpace: "nowrap", flexShrink: 0 }}>
-                      {exp.startDate}{exp.startDate && (exp.current || exp.endDate) ? " – " : ""}{exp.current ? "Present" : exp.endDate}
-                    </span>
-                  )}
-                </div>
-                {exp.location && <p style={body()}>{exp.location}</p>}
-                {exp.bullets.filter(Boolean).length > 0 && (
-                  <ul style={{ margin: "4px 0 0 0", paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "2px", listStyleType: "disc" }}>
-                    {exp.bullets.filter(Boolean).map((b, bi) => (
-                      <li key={bi} style={{ ...body(), display: "list-item" }}>{b}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Education */}
-      {education.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <SectionHeader0 title="Education" />
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {education.map((edu) => (
-              <div key={edu.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "16px" }}>
-                  <span style={{ fontSize: "13px", lineHeight: "160%", letterSpacing: "-0.02em", color: "#1F1F1F", fontWeight: 600, fontFamily: FONT }}>
-                    {edu.institution || "Institution"}
-                  </span>
-                  {(edu.startDate || edu.endDate) && (
-                    <span style={{ ...body(), whiteSpace: "nowrap", flexShrink: 0 }}>
-                      {edu.startDate}{edu.startDate && edu.endDate ? " – " : ""}{edu.endDate}
-                    </span>
-                  )}
-                </div>
-                <p style={body()}>
-                  {[edu.degree, edu.field].filter(Boolean).join(", ")}
-                  {edu.gpa && <span> · GPA: {edu.gpa}</span>}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Skills */}
-      {skills.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <SectionHeader0 title="Core Competencies" />
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            {skills.map((group) => (
-              <p key={group.id} style={body()}>
-                {group.category && <span style={{ fontWeight: 600, color: "#1F1F1F" }}>{group.category}: </span>}
-                {group.items.join(", ")}
-              </p>
-            ))}
-          </div>
-        </div>
-      )}
+      {sectionOrder.map((id) => renderSection(id))}
     </div>
   );
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    TEMPLATE 1 — Two Column
-   Header full-width · Left col: Skills + Education · Right col: Summary + Exp
+   Header full-width · Left col: skills + education · Right col: summary + exp
+   Order within each column follows sectionOrder
 ══════════════════════════════════════════════════════════════════════════════ */
 function SectionHeader1({ title, accent }: { title: string; accent: string }) {
   return (
@@ -206,13 +228,106 @@ function SectionHeader1({ title, accent }: { title: string; accent: string }) {
   );
 }
 
-function Template1({ resume, accent }: { resume: Resume; accent: string }) {
+function Template1({ resume, accent, sectionOrder }: { resume: Resume; accent: string; sectionOrder: SectionId[] }) {
   const { personalInfo, summary, experience, education, skills } = resume;
   const contactItems = buildContactItems(resume);
 
+  const leftIds  = sectionOrder.filter((id) => id === "skills"   || id === "education");
+  const rightIds = sectionOrder.filter((id) => id === "summary"  || id === "experience");
+
+  function renderLeft(id: SectionId) {
+    switch (id) {
+      case "skills":
+        return skills.length === 0 ? null : (
+          <div key="skills" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <SectionHeader1 title="Skills" accent={accent} />
+            {skills.map((group) => (
+              <div key={group.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                {group.category && (
+                  <span style={{ fontSize: "11px", fontWeight: 600, color: "#1F1F1F", fontFamily: FONT, letterSpacing: "-0.01em" }}>
+                    {group.category}
+                  </span>
+                )}
+                <p style={{ ...body(), fontSize: "12px" }}>{group.items.join(", ")}</p>
+              </div>
+            ))}
+          </div>
+        );
+
+      case "education":
+        return education.length === 0 ? null : (
+          <div key="education" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <SectionHeader1 title="Education" accent={accent} />
+            {education.map((edu) => (
+              <div key={edu.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <span style={{ fontSize: "12px", fontWeight: 600, color: "#1F1F1F", fontFamily: FONT }}>
+                  {edu.institution || "Institution"}
+                </span>
+                <p style={{ ...body(), fontSize: "12px" }}>
+                  {[edu.degree, edu.field].filter(Boolean).join(", ")}
+                </p>
+                {(edu.startDate || edu.endDate) && (
+                  <p style={{ ...body(), fontSize: "11px", color: "#AEAEB2" }}>
+                    {edu.startDate}{edu.startDate && edu.endDate ? " – " : ""}{edu.endDate}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+
+      default: return null;
+    }
+  }
+
+  function renderRight(id: SectionId) {
+    switch (id) {
+      case "summary":
+        return !summary ? null : (
+          <div key="summary" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <SectionHeader1 title="Professional Summary" accent={accent} />
+            <p style={body()}>{summary}</p>
+          </div>
+        );
+
+      case "experience":
+        return experience.length === 0 ? null : (
+          <div key="experience" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <SectionHeader1 title="Experience" accent={accent} />
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {experience.map((exp) => (
+                <div key={exp.id} style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 600, color: "#1F1F1F", fontFamily: FONT, letterSpacing: "-0.02em" }}>
+                      {exp.title || "Job Title"}
+                    </span>
+                    {(exp.startDate || exp.endDate || exp.current) && (
+                      <span style={{ ...body(), fontSize: "11px", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {exp.startDate}{exp.startDate && (exp.current || exp.endDate) ? " – " : ""}{exp.current ? "Present" : exp.endDate}
+                      </span>
+                    )}
+                  </div>
+                  {exp.company && <p style={{ ...body(), fontSize: "12px", color: accent }}>{exp.company}</p>}
+                  {exp.bullets.filter(Boolean).length > 0 && (
+                    <ul style={{ margin: "4px 0 0 0", paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "2px", listStyleType: "disc" }}>
+                      {exp.bullets.filter(Boolean).map((b, bi) => (
+                        <li key={bi} style={{ ...body(), fontSize: "12px", display: "list-item" }}>{b}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      default: return null;
+    }
+  }
+
   return (
     <div style={{ fontFamily: FONT, padding: "32px", display: "flex", flexDirection: "column", gap: "0" }}>
-      {/* Full-width header */}
+      {/* Full-width header — always at top */}
       <div style={{ paddingBottom: "20px", borderBottom: "2px solid #E8E8E8", marginBottom: "20px" }}>
         {personalInfo.name && (
           <span style={{ fontSize: "22px", lineHeight: "120%", letterSpacing: "-0.03em", color: "#1F1F1F", fontWeight: 700, fontFamily: FONT, display: "block" }}>
@@ -235,84 +350,11 @@ function Template1({ resume, accent }: { resume: Resume; accent: string }) {
 
       {/* Two columns */}
       <div style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
-        {/* Left column — 36% */}
         <div style={{ width: "36%", flexShrink: 0, display: "flex", flexDirection: "column", gap: "20px" }}>
-          {skills.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <SectionHeader1 title="Skills" accent={accent} />
-              {skills.map((group) => (
-                <div key={group.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  {group.category && (
-                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#1F1F1F", fontFamily: FONT, letterSpacing: "-0.01em" }}>
-                      {group.category}
-                    </span>
-                  )}
-                  <p style={{ ...body(), fontSize: "12px" }}>{group.items.join(", ")}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {education.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <SectionHeader1 title="Education" accent={accent} />
-              {education.map((edu) => (
-                <div key={edu.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#1F1F1F", fontFamily: FONT }}>
-                    {edu.institution || "Institution"}
-                  </span>
-                  <p style={{ ...body(), fontSize: "12px" }}>
-                    {[edu.degree, edu.field].filter(Boolean).join(", ")}
-                  </p>
-                  {(edu.startDate || edu.endDate) && (
-                    <p style={{ ...body(), fontSize: "11px", color: "#AEAEB2" }}>
-                      {edu.startDate}{edu.startDate && edu.endDate ? " – " : ""}{edu.endDate}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          {leftIds.map((id) => renderLeft(id))}
         </div>
-
-        {/* Right column — 64% */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}>
-          {summary && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <SectionHeader1 title="Professional Summary" accent={accent} />
-              <p style={body()}>{summary}</p>
-            </div>
-          )}
-
-          {experience.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <SectionHeader1 title="Experience" accent={accent} />
-              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                {experience.map((exp) => (
-                  <div key={exp.id} style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" }}>
-                      <span style={{ fontSize: "13px", fontWeight: 600, color: "#1F1F1F", fontFamily: FONT, letterSpacing: "-0.02em" }}>
-                        {exp.title || "Job Title"}
-                      </span>
-                      {(exp.startDate || exp.endDate || exp.current) && (
-                        <span style={{ ...body(), fontSize: "11px", whiteSpace: "nowrap", flexShrink: 0 }}>
-                          {exp.startDate}{exp.startDate && (exp.current || exp.endDate) ? " – " : ""}{exp.current ? "Present" : exp.endDate}
-                        </span>
-                      )}
-                    </div>
-                    {exp.company && <p style={{ ...body(), fontSize: "12px", color: accent }}>{exp.company}</p>}
-                    {exp.bullets.filter(Boolean).length > 0 && (
-                      <ul style={{ margin: "4px 0 0 0", paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "2px", listStyleType: "disc" }}>
-                        {exp.bullets.filter(Boolean).map((b, bi) => (
-                          <li key={bi} style={{ ...body(), fontSize: "12px", display: "list-item" }}>{b}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {rightIds.map((id) => renderRight(id))}
         </div>
       </div>
     </div>
@@ -321,58 +363,21 @@ function Template1({ resume, accent }: { resume: Resume; accent: string }) {
 
 /* ══════════════════════════════════════════════════════════════════════════════
    TEMPLATE 2 — Modern Sidebar
-   Left sidebar with accent bg: name + contact + skills
-   Right main: summary + experience + education
+   Sidebar: name + contact + skills/education (ordered) · Main: summary + exp (ordered)
 ══════════════════════════════════════════════════════════════════════════════ */
-function Template2({ resume, accent }: { resume: Resume; accent: string }) {
+function Template2({ resume, accent, sectionOrder }: { resume: Resume; accent: string; sectionOrder: SectionId[] }) {
   const { personalInfo, summary, experience, education, skills } = resume;
   const contactItems = buildContactItems(resume);
-
-  // Lighten accent for sidebar bg — use a fixed light tint
   const sidebarBg = "#EFF6FF";
 
-  return (
-    <div style={{ fontFamily: FONT, display: "flex", minHeight: "100%", borderRadius: "16px", overflow: "hidden" }}>
-      {/* Left sidebar */}
-      <div
-        style={{
-          width: "32%",
-          flexShrink: 0,
-          backgroundColor: sidebarBg,
-          padding: "28px 20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "20px",
-        }}
-      >
-        {/* Name */}
-        {personalInfo.name && (
-          <div>
-            <span style={{ fontSize: "16px", lineHeight: "130%", letterSpacing: "-0.03em", color: "#1F1F1F", fontWeight: 700, fontFamily: FONT }}>
-              {personalInfo.name}
-            </span>
-          </div>
-        )}
+  const sidebarIds = sectionOrder.filter((id) => id === "skills"  || id === "education");
+  const mainIds    = sectionOrder.filter((id) => id === "summary" || id === "experience");
 
-        {/* Contact info stacked */}
-        {contactItems.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <span style={{ fontSize: "10px", letterSpacing: "0.10em", color: accent, fontWeight: 700, fontFamily: FONT, marginBottom: "4px", display: "block" }}>
-              CONTACT
-            </span>
-            {contactItems.map((item, i) => (
-              <div key={i}>
-                {item.kind === "link"
-                  ? <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ ...body(accent), fontSize: "11px", textDecoration: "none", wordBreak: "break-all" }}>{item.label}</a>
-                  : <p style={{ ...body(), fontSize: "11px" }}>{item.value}</p>}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Skills */}
-        {skills.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+  function renderSidebar(id: SectionId) {
+    switch (id) {
+      case "skills":
+        return skills.length === 0 ? null : (
+          <div key="skills" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <span style={{ fontSize: "10px", letterSpacing: "0.10em", color: accent, fontWeight: 700, fontFamily: FONT, display: "block" }}>
               SKILLS
             </span>
@@ -387,11 +392,11 @@ function Template2({ resume, accent }: { resume: Resume; accent: string }) {
               </div>
             ))}
           </div>
-        )}
+        );
 
-        {/* Education in sidebar */}
-        {education.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      case "education":
+        return education.length === 0 ? null : (
+          <div key="education" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <span style={{ fontSize: "10px", letterSpacing: "0.10em", color: accent, fontWeight: 700, fontFamily: FONT, display: "block" }}>
               EDUCATION
             </span>
@@ -411,23 +416,28 @@ function Template2({ resume, accent }: { resume: Resume; accent: string }) {
               </div>
             ))}
           </div>
-        )}
-      </div>
+        );
 
-      {/* Right main content */}
-      <div style={{ flex: 1, padding: "28px 24px", display: "flex", flexDirection: "column", gap: "20px" }}>
-        {summary && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+      default: return null;
+    }
+  }
+
+  function renderMain(id: SectionId) {
+    switch (id) {
+      case "summary":
+        return !summary ? null : (
+          <div key="summary" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <span style={{ fontSize: "11px", letterSpacing: "0.08em", color: accent, fontWeight: 700, fontFamily: FONT }}>
               PROFESSIONAL SUMMARY
             </span>
             <div style={{ height: "1.5px", backgroundColor: "#E8E8E8", marginBottom: "6px" }} />
             <p style={body()}>{summary}</p>
           </div>
-        )}
+        );
 
-        {experience.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+      case "experience":
+        return experience.length === 0 ? null : (
+          <div key="experience" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <span style={{ fontSize: "11px", letterSpacing: "0.08em", color: accent, fontWeight: 700, fontFamily: FONT }}>
               EXPERIENCE
             </span>
@@ -445,7 +455,11 @@ function Template2({ resume, accent }: { resume: Resume; accent: string }) {
                       </span>
                     )}
                   </div>
-                  {exp.company && <p style={{ ...body(accent), fontSize: "12px", fontWeight: 600 }}>{exp.company}{exp.location ? ` · ${exp.location}` : ""}</p>}
+                  {exp.company && (
+                    <p style={{ ...body(accent), fontSize: "12px", fontWeight: 600 }}>
+                      {exp.company}{exp.location ? ` · ${exp.location}` : ""}
+                    </p>
+                  )}
                   {exp.bullets.filter(Boolean).length > 0 && (
                     <ul style={{ margin: "4px 0 0 0", paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "2px", listStyleType: "disc" }}>
                       {exp.bullets.filter(Boolean).map((b, bi) => (
@@ -457,7 +471,53 @@ function Template2({ resume, accent }: { resume: Resume; accent: string }) {
               ))}
             </div>
           </div>
+        );
+
+      default: return null;
+    }
+  }
+
+  return (
+    <div style={{ fontFamily: FONT, display: "flex", minHeight: "100%", borderRadius: "20px", overflow: "hidden" }}>
+      {/* Left sidebar */}
+      <div
+        style={{
+          width: "32%",
+          flexShrink: 0,
+          backgroundColor: sidebarBg,
+          padding: "28px 20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "20px",
+        }}
+      >
+        {personalInfo.name && (
+          <div>
+            <span style={{ fontSize: "16px", lineHeight: "130%", letterSpacing: "-0.03em", color: "#1F1F1F", fontWeight: 700, fontFamily: FONT }}>
+              {personalInfo.name}
+            </span>
+          </div>
         )}
+        {contactItems.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <span style={{ fontSize: "10px", letterSpacing: "0.10em", color: accent, fontWeight: 700, fontFamily: FONT, marginBottom: "4px", display: "block" }}>
+              CONTACT
+            </span>
+            {contactItems.map((item, i) => (
+              <div key={i}>
+                {item.kind === "link"
+                  ? <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ ...body(accent), fontSize: "11px", textDecoration: "none", wordBreak: "break-all" }}>{item.label}</a>
+                  : <p style={{ ...body(), fontSize: "11px" }}>{item.value}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+        {sidebarIds.map((id) => renderSidebar(id))}
+      </div>
+
+      {/* Right main content */}
+      <div style={{ flex: 1, padding: "28px 24px", display: "flex", flexDirection: "column", gap: "20px" }}>
+        {mainIds.map((id) => renderMain(id))}
       </div>
     </div>
   );
@@ -466,7 +526,12 @@ function Template2({ resume, accent }: { resume: Resume; accent: string }) {
 /* ══════════════════════════════════════════════════════════════════════════════
    Root export
 ══════════════════════════════════════════════════════════════════════════════ */
-export default function ResumePreview({ resume, template = 0, accentColor = DEFAULT_ACCENT }: Props) {
+export default function ResumePreview({
+  resume,
+  template = 0,
+  accentColor = DEFAULT_ACCENT,
+  sectionOrder = DEFAULT_ORDER,
+}: Props) {
   const { personalInfo, summary, experience, education, skills } = resume;
 
   const hasContent =
@@ -478,7 +543,7 @@ export default function ResumePreview({ resume, template = 0, accentColor = DEFA
 
   if (!hasContent) return <EmptyState />;
 
-  if (template === 1) return <Template1 resume={resume} accent={accentColor} />;
-  if (template === 2) return <Template2 resume={resume} accent={accentColor} />;
-  return <Template0 resume={resume} accent={accentColor} />;
+  if (template === 1) return <Template1 resume={resume} accent={accentColor} sectionOrder={sectionOrder} />;
+  if (template === 2) return <Template2 resume={resume} accent={accentColor} sectionOrder={sectionOrder} />;
+  return <Template0 resume={resume} accent={accentColor} sectionOrder={sectionOrder} />;
 }

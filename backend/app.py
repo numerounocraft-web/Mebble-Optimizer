@@ -7,6 +7,7 @@ from services.action_words_analyzer import ActionWordsAnalyzer
 from services.ats_calculator import ATSCalculator
 from services.report_generator import ReportGenerator
 from services.section_optimizer import SectionOptimizer
+from services import linkedin_pdf_parser
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = Config.MAX_FILE_SIZE
@@ -186,6 +187,27 @@ def download_report():
 
     report_text = report_generator.generate_markdown(data)
     return jsonify({'success': True, 'report': report_text})
+
+
+@app.post('/api/linkedin/import')
+def linkedin_import():
+    """Parse a LinkedIn profile PDF export into structured resume data."""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded.'}), 400
+
+    file = request.files['file']
+    if not file.filename or not file.filename.lower().endswith('.pdf'):
+        return jsonify({'success': False, 'error': 'Please upload a PDF file.'}), 400
+
+    try:
+        resume_data = linkedin_pdf_parser.parse(file.read())
+    except Exception:
+        return jsonify({'success': False, 'error': 'Could not parse the PDF. Make sure it was exported directly from LinkedIn.'}), 500
+
+    if not resume_data.get('personalInfo', {}).get('name'):
+        return jsonify({'success': False, 'error': 'Could not find your name in the PDF. Make sure you uploaded your LinkedIn profile export.'}), 400
+
+    return jsonify({'success': True, 'data': resume_data})
 
 
 if __name__ == '__main__':

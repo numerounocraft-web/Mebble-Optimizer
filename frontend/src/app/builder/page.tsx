@@ -273,6 +273,36 @@ export default function BuilderPage() {
     }, 180);
   }
 
+  // Apply LinkedIn prefill if arriving from the import flow
+  useEffect(() => {
+    const raw = localStorage.getItem("mebble_linkedin_prefill");
+    if (!raw) return;
+    localStorage.removeItem("mebble_linkedin_prefill");
+    try {
+      const d = JSON.parse(raw);
+      setResume((prev) => ({
+        ...prev,
+        personalInfo: {
+          ...prev.personalInfo,
+          ...(d.personalInfo || {}),
+          // Preserve existing links array shape; merge LinkedIn URL if present
+          links: d.personalInfo?.links?.length
+            ? d.personalInfo.links
+            : prev.personalInfo.links,
+        },
+        summary:    d.summary    || prev.summary,
+        experience: d.experience?.length ? d.experience.map((e: ExperienceEntry) => ({ ...newExperience(), ...e })) : prev.experience,
+        education:  d.education?.length  ? d.education.map((e: EducationEntry)   => ({ ...newEducation(),  ...e })) : prev.education,
+        skills:     d.skills?.length     ? d.skills                                                                  : prev.skills,
+      }));
+      // Open Personal Info so the user sees the imported data first
+      setOpenSection("personalInfo");
+    } catch {
+      // malformed data — silently ignore
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Close settings dropdown on outside click
   useEffect(() => {
     function handleOutside(e: MouseEvent) {

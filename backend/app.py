@@ -92,6 +92,113 @@ def extract_jd():
     return jsonify({'success': True, 'text': text})
 
 
+@app.post('/api/optimize-summary-variants')
+def optimize_summary_variants():
+    """Generate up to 3 distinct optimised variants of the professional summary."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    summary = data.get('summary', '').strip()
+    missing_keywords = data.get('missing_keywords', [])
+    domain = data.get('domain', 'general')
+
+    if not summary:
+        return jsonify({'success': False, 'error': 'Summary is required'}), 400
+
+    variants = []
+    seen = set()
+
+    for style in ('full', 'concise', 'refined'):
+        try:
+            v = section_optimizer._optimize_summary(summary, missing_keywords, domain, style=style)
+            if v and v not in seen:
+                variants.append(v)
+                seen.add(v)
+        except Exception:
+            pass
+
+    if not variants:
+        variants = [summary]
+
+    return jsonify({'success': True, 'variants': variants})
+
+
+@app.post('/api/optimize-builder')
+def optimize_builder():
+    """Optimize builder resume with missing keywords (structured JSON I/O)."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    resume_data = data.get('resume', {})
+    missing_keywords = data.get('missing_keywords', [])
+    domain = data.get('domain', 'general')
+
+    if not missing_keywords:
+        return jsonify({'success': False, 'error': 'No missing keywords provided'}), 400
+
+    summary = resume_data.get('summary', '')
+    experience = resume_data.get('experience', [])
+    remaining = list(missing_keywords)
+
+    # Optimise summary first (up to 5 keywords)
+    optimized_summary = summary
+    if summary and remaining:
+        optimized_summary = section_optimizer.optimize('professional_summary', summary, remaining, domain)
+        remaining = [
+            kw for kw in remaining
+            if kw.lower() not in optimized_summary.lower() or kw.lower() in summary.lower()
+        ]
+
+    # Distribute remaining keywords EVENLY across ALL experience entries.
+    # Ceiling division ensures every entry with bullets gets at least one keyword
+    # rather than the first entry consuming everything.
+    entries_with_bullets = [e for e in experience if [b for b in e.get('bullets', []) if b.strip()]]
+    n_entries = len(entries_with_bullets)
+    per_entry = (len(remaining) + n_entries - 1) // n_entries if n_entries else 0
+
+    def _parse_bullets(text: str) -> list:
+        bullets = []
+        for line in text.split('\n'):
+            s = line.strip()
+            if s.startswith('\u2022'):
+                bullets.append(s[1:].strip())
+            elif s and s[0] in ('-', '*'):
+                bullets.append(s[1:].strip())
+            elif s:
+                bullets.append(s)
+        return bullets
+
+    optimized_experience = []
+    for exp in experience:
+        exp_id = exp.get('id', '')
+        bullets = [b for b in exp.get('bullets', []) if b.strip()]
+
+        if not bullets or not remaining:
+            optimized_experience.append({'id': exp_id, 'bullets': exp.get('bullets', [])})
+            continue
+
+        # Give this entry its fair share — no more, so later entries also get keywords
+        entry_kws = remaining[:per_entry]
+        bullet_text = '\n'.join(f'\u2022 {b}' for b in bullets)
+        optimized_text = section_optimizer.optimize('experience', bullet_text, entry_kws)
+        new_bullets = _parse_bullets(optimized_text)
+
+        # Remove keywords that were successfully woven into this entry
+        remaining = [
+            kw for kw in remaining
+            if kw.lower() not in optimized_text.lower() or kw.lower() in bullet_text.lower()
+        ]
+
+        optimized_experience.append({'id': exp_id, 'bullets': new_bullets if new_bullets else bullets})
+
+    return jsonify({
+        'success': True,
+        'data': {'summary': optimized_summary, 'experience': optimized_experience}
+    })
+
+
 @app.post('/api/optimize-all')
 def optimize_all():
     """Optimize all resume sections at once, distributing missing keywords without repetition."""
@@ -176,6 +283,45 @@ def analyze():
             }
         })
     except Exception as e:
+        return jsonify({'success': False, 'error': 'Analysis failed. Please try again.'}), 500
+
+
+@app.post('/api/analyze-builder')
+def analyze_builder():
+    """Analyze a resume from the builder (plain text, no PDF upload required)."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    resume_text = data.get('resume_text', '').strip()
+    job_description = data.get('job_description', '').strip()
+
+    if not resume_text:
+        return jsonify({'success': False, 'error': 'Resume text is required'}), 400
+    if not job_description:
+        return jsonify({'success': False, 'error': 'Job description is required'}), 400
+    if len(job_description) > Config.MAX_JD_LENGTH:
+        job_description = job_description[:Config.MAX_JD_LENGTH]
+
+    try:
+        keyword_results = keyword_analyzer.analyze(resume_text, job_description)
+        action_results = action_words_analyzer.analyze(resume_text)
+        ats_score, score_category = ats_calculator.calculate(keyword_results)
+        summary = report_generator.generate_summary(ats_score, score_category, keyword_results)
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'ats_score': ats_score,
+                'score_category': score_category,
+                'matched_keywords': keyword_results['matched'],
+                'missing_keywords': keyword_results['missing'],
+                'domain': keyword_results['domain'],
+                'action_words_analysis': action_results,
+                'summary': summary,
+            }
+        })
+    except Exception:
         return jsonify({'success': False, 'error': 'Analysis failed. Please try again.'}), 500
 
 

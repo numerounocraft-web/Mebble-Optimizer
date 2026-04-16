@@ -11,6 +11,39 @@ interface Props {
   template?: number;
   accentColor?: string;
   sectionOrder?: SectionId[];
+  highlightKeywords?: string[];
+}
+
+/* ── Keyword shimmer highlight ──────────────────────────────────────────────── */
+function HighlightedText({ text, keywords }: { text: string; keywords: string[] }) {
+  if (!keywords.length || !text) return <>{text}</>;
+  const escaped = keywords.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const pattern = new RegExp(`(${escaped.join("|")})`, "gi");
+  const parts = text.split(pattern);
+  return (
+    <>
+      {parts.map((part, i) =>
+        keywords.some((kw) => kw.toLowerCase() === part.toLowerCase()) ? (
+          <span
+            key={i}
+            style={{
+              background: "linear-gradient(90deg, #028FF4 0%, #8B5CF6 50%, #EC4899 100%)",
+              backgroundSize: "200% auto",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              animation: "kwShimmer 2.5s linear infinite",
+              fontWeight: 700,
+            }}
+          >
+            {part}
+          </span>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
 }
 
 const FONT = '"Geist", var(--font-geist-sans), system-ui, sans-serif';
@@ -36,19 +69,103 @@ function EmptyState() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: "12px",
+        gap: "20px",
         padding: "80px 40px",
         minHeight: "400px",
         fontFamily: FONT,
       }}
     >
-      <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
-        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="#E0E0E0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="#E0E0E0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <svg width="287" height="162" viewBox="0 0 287 162" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g filter="url(#filter0_d_4573_15978)">
+          <rect x="96.832" y="2.5" width="135.333" height="130.008" rx="13.0442" fill="white" shapeRendering="crispEdges"/>
+          <rect x="97.0055" y="2.67346" width="134.986" height="129.661" rx="12.8707" stroke="#EBEBEB" strokeWidth="0.346919" shapeRendering="crispEdges"/>
+          <rect width="96.2007" height="8.1526" transform="translate(116.398 22.0664)" fill="#F3F3F3"/>
+          <rect width="96.2007" height="8.1526" transform="translate(116.398 52.4219)" fill="#F3F3F3"/>
+          <rect width="96.2007" height="8.1526" transform="translate(116.398 66.125)" fill="#F3F3F3"/>
+          <rect width="85.6023" height="7.33734" transform="translate(116.398 79.8281)" fill="#F3F3F3"/>
+          <rect width="59.514" height="7.33734" transform="translate(116.398 92.7168)" fill="#F3F3F3"/>
+          <rect width="38.3172" height="7.33734" transform="translate(116.398 105.604)" fill="#F3F3F3"/>
+        </g>
+        <g filter="url(#filter1_d_4573_15978)">
+          <rect x="187" y="46.4824" width="100" height="96.0651" rx="9.63855" transform="rotate(5.81056 187 46.4824)" fill="white" shapeRendering="crispEdges"/>
+          <rect x="187.115" y="46.6229" width="99.7437" height="95.8088" rx="9.51038" transform="rotate(5.81056 187.115 46.6229)" stroke="#EBEBEB" strokeWidth="0.256345" shapeRendering="crispEdges"/>
+          <rect width="71.0843" height="6.0241" transform="translate(199.92 62.3301) rotate(5.81056)" fill="#F3F3F3"/>
+          <rect width="71.0843" height="6.0241" transform="translate(197.648 84.6445) rotate(5.81056)" fill="#F3F3F3"/>
+          <rect width="71.0843" height="6.0241" transform="translate(196.623 94.7178) rotate(5.81056)" fill="#F3F3F3"/>
+          <rect width="63.253" height="5.42169" transform="translate(195.598 104.792) rotate(5.81056)" fill="#F3F3F3"/>
+          <rect width="43.9759" height="5.42169" transform="translate(194.635 114.266) rotate(5.81056)" fill="#F3F3F3"/>
+          <rect width="28.3133" height="5.42169" transform="translate(193.67 123.74) rotate(5.81056)" fill="#F3F3F3"/>
+        </g>
+        <g filter="url(#filter2_d_4573_15978)">
+          <rect y="63.0195" width="100" height="96.0651" rx="9.63855" transform="rotate(-8.30917 0 63.0195)" fill="white" shapeRendering="crispEdges"/>
+          <rect x="0.14535" y="63.1278" width="99.7437" height="95.8088" rx="9.51038" transform="rotate(-8.30917 0.14535 63.1278)" stroke="#EBEBEB" strokeWidth="0.256345" shapeRendering="crispEdges"/>
+          <rect width="71.0843" height="6.0241" transform="translate(16.3945 75.2363) rotate(-8.30917)" fill="#F3F3F3"/>
+          <rect width="71.0843" height="6.0241" transform="translate(19.6367 97.4307) rotate(-8.30917)" fill="#F3F3F3"/>
+          <rect width="71.0843" height="6.0241" transform="translate(21.0996 107.45) rotate(-8.30917)" fill="#F3F3F3"/>
+          <rect width="63.253" height="5.42169" transform="translate(22.5625 117.47) rotate(-8.30917)" fill="#F3F3F3"/>
+          <rect width="43.9759" height="5.42169" transform="translate(23.9395 126.893) rotate(-8.30917)" fill="#F3F3F3"/>
+          <rect width="28.3133" height="5.42169" transform="translate(25.3164 136.315) rotate(-8.30917)" fill="#F3F3F3"/>
+        </g>
+        <defs>
+          <filter id="filter0_d_4573_15978" x="96.832" y="2.5" width="136.965" height="133.269" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+            <feFlood floodOpacity="0" result="BackgroundImageFix"/>
+            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+            <feOffset dx="1.63052" dy="3.26104"/>
+            <feComposite in2="hardAlpha" operator="out"/>
+            <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.07 0"/>
+            <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_4573_15978"/>
+            <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_4573_15978" result="shape"/>
+          </filter>
+          <filter id="filter1_d_4573_15978" x="177.273" y="46.4824" width="110.418" height="108.105" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+            <feFlood floodOpacity="0" result="BackgroundImageFix"/>
+            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+            <feOffset dx="1.20482" dy="2.40964"/>
+            <feComposite in2="hardAlpha" operator="out"/>
+            <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.07 0"/>
+            <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_4573_15978"/>
+            <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_4573_15978" result="shape"/>
+          </filter>
+          <filter id="filter2_d_4573_15978" x="-1.31596" y="48.5684" width="114.15" height="111.917" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+            <feFlood floodOpacity="0" result="BackgroundImageFix"/>
+            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+            <feOffset dx="-1.31596" dy="2.40964"/>
+            <feComposite in2="hardAlpha" operator="out"/>
+            <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.07 0"/>
+            <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_4573_15978"/>
+            <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_4573_15978" result="shape"/>
+          </filter>
+        </defs>
       </svg>
-      <p style={{ ...body("#D0D0D0"), textAlign: "center" }}>
-        Start filling in your details —<br />your resume will appear here live
-      </p>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+        <p
+          style={{
+            fontSize: "14px",
+            lineHeight: "160%",
+            letterSpacing: "-0.02em",
+            color: "#1F1F1F",
+            fontFamily: FONT,
+            fontWeight: 500,
+            margin: 0,
+            textAlign: "center",
+          }}
+        >
+          No information to display
+        </p>
+        <p
+          style={{
+            fontSize: "13px",
+            lineHeight: "160%",
+            letterSpacing: "-0.02em",
+            color: "#727272",
+            fontFamily: FONT,
+            fontWeight: 500,
+            margin: 0,
+            textAlign: "center",
+          }}
+        >
+          Get started and build your resume.<br />This canvas previews your information.
+        </p>
+      </div>
     </div>
   );
 }
@@ -84,7 +201,7 @@ function SectionHeader0({ title }: { title: string }) {
   );
 }
 
-function Template0({ resume, accent, sectionOrder }: { resume: Resume; accent: string; sectionOrder: SectionId[] }) {
+function Template0({ resume, accent, sectionOrder, highlight }: { resume: Resume; accent: string; sectionOrder: SectionId[]; highlight: string[] }) {
   const { personalInfo, summary, experience, education, skills } = resume;
   const contactItems = buildContactItems(resume);
 
@@ -119,7 +236,7 @@ function Template0({ resume, accent, sectionOrder }: { resume: Resume; accent: s
         return (
           <div key="summary" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <SectionHeader0 title="Professional Summary" />
-            <p style={body()}>{summary}</p>
+            <p style={body()}><HighlightedText text={summary} keywords={highlight} /></p>
           </div>
         );
 
@@ -130,7 +247,7 @@ function Template0({ resume, accent, sectionOrder }: { resume: Resume; accent: s
             <SectionHeader0 title="Professional Experience" />
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               {experience.map((exp) => (
-                <div key={exp.id} style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                <div key={exp.id} style={{ display: "flex", flexDirection: "column", gap: "3px", pageBreakInside: "avoid", breakInside: "avoid" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "16px" }}>
                     <span style={{ fontSize: "13px", lineHeight: "160%", letterSpacing: "-0.02em", color: "#1F1F1F", fontWeight: 600, fontFamily: FONT }}>
                       {exp.title || "Job Title"}
@@ -144,11 +261,14 @@ function Template0({ resume, accent, sectionOrder }: { resume: Resume; accent: s
                   </div>
                   {exp.location && <p style={body()}>{exp.location}</p>}
                   {exp.bullets.filter(Boolean).length > 0 && (
-                    <ul style={{ margin: "4px 0 0 0", paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "2px", listStyleType: "disc" }}>
+                    <div style={{ margin: "4px 0 0 0", display: "flex", flexDirection: "column", gap: "2px" }}>
                       {exp.bullets.filter(Boolean).map((b, bi) => (
-                        <li key={bi} style={{ ...body(), display: "list-item" }}>{b}</li>
+                        <div key={bi} style={{ display: "flex", gap: "7px", alignItems: "flex-start" }}>
+                          <span style={{ ...body(), flexShrink: 0 }}>•</span>
+                          <span style={body()}><HighlightedText text={b} keywords={highlight} /></span>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   )}
                 </div>
               ))}
@@ -228,7 +348,7 @@ function SectionHeader1({ title, accent }: { title: string; accent: string }) {
   );
 }
 
-function Template1({ resume, accent, sectionOrder }: { resume: Resume; accent: string; sectionOrder: SectionId[] }) {
+function Template1({ resume, accent, sectionOrder, highlight }: { resume: Resume; accent: string; sectionOrder: SectionId[]; highlight: string[] }) {
   const { personalInfo, summary, experience, education, skills } = resume;
   const contactItems = buildContactItems(resume);
 
@@ -286,7 +406,7 @@ function Template1({ resume, accent, sectionOrder }: { resume: Resume; accent: s
         return !summary ? null : (
           <div key="summary" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <SectionHeader1 title="Professional Summary" accent={accent} />
-            <p style={body()}>{summary}</p>
+            <p style={body()}><HighlightedText text={summary} keywords={highlight} /></p>
           </div>
         );
 
@@ -296,7 +416,7 @@ function Template1({ resume, accent, sectionOrder }: { resume: Resume; accent: s
             <SectionHeader1 title="Experience" accent={accent} />
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               {experience.map((exp) => (
-                <div key={exp.id} style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                <div key={exp.id} style={{ display: "flex", flexDirection: "column", gap: "3px", pageBreakInside: "avoid", breakInside: "avoid" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" }}>
                     <span style={{ fontSize: "13px", fontWeight: 600, color: "#1F1F1F", fontFamily: FONT, letterSpacing: "-0.02em" }}>
                       {exp.title || "Job Title"}
@@ -309,11 +429,14 @@ function Template1({ resume, accent, sectionOrder }: { resume: Resume; accent: s
                   </div>
                   {exp.company && <p style={{ ...body(), fontSize: "12px", color: accent }}>{exp.company}</p>}
                   {exp.bullets.filter(Boolean).length > 0 && (
-                    <ul style={{ margin: "4px 0 0 0", paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "2px", listStyleType: "disc" }}>
+                    <div style={{ margin: "4px 0 0 0", display: "flex", flexDirection: "column", gap: "2px" }}>
                       {exp.bullets.filter(Boolean).map((b, bi) => (
-                        <li key={bi} style={{ ...body(), fontSize: "12px", display: "list-item" }}>{b}</li>
+                        <div key={bi} style={{ display: "flex", gap: "7px", alignItems: "flex-start" }}>
+                          <span style={{ ...body(), fontSize: "12px", flexShrink: 0 }}>•</span>
+                          <span style={{ ...body(), fontSize: "12px" }}><HighlightedText text={b} keywords={highlight} /></span>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   )}
                 </div>
               ))}
@@ -365,7 +488,7 @@ function Template1({ resume, accent, sectionOrder }: { resume: Resume; accent: s
    TEMPLATE 2 — Modern Sidebar
    Sidebar: name + contact + skills/education (ordered) · Main: summary + exp (ordered)
 ══════════════════════════════════════════════════════════════════════════════ */
-function Template2({ resume, accent, sectionOrder }: { resume: Resume; accent: string; sectionOrder: SectionId[] }) {
+function Template2({ resume, accent, sectionOrder, highlight }: { resume: Resume; accent: string; sectionOrder: SectionId[]; highlight: string[] }) {
   const { personalInfo, summary, experience, education, skills } = resume;
   const contactItems = buildContactItems(resume);
   const sidebarBg = "#EFF6FF";
@@ -444,7 +567,7 @@ function Template2({ resume, accent, sectionOrder }: { resume: Resume; accent: s
             <div style={{ height: "1.5px", backgroundColor: "#E8E8E8", marginBottom: "6px" }} />
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               {experience.map((exp) => (
-                <div key={exp.id} style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                <div key={exp.id} style={{ display: "flex", flexDirection: "column", gap: "3px", pageBreakInside: "avoid", breakInside: "avoid" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" }}>
                     <span style={{ fontSize: "13px", fontWeight: 600, color: "#1F1F1F", fontFamily: FONT, letterSpacing: "-0.02em" }}>
                       {exp.title || "Job Title"}
@@ -461,11 +584,14 @@ function Template2({ resume, accent, sectionOrder }: { resume: Resume; accent: s
                     </p>
                   )}
                   {exp.bullets.filter(Boolean).length > 0 && (
-                    <ul style={{ margin: "4px 0 0 0", paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "2px", listStyleType: "disc" }}>
+                    <div style={{ margin: "4px 0 0 0", display: "flex", flexDirection: "column", gap: "2px" }}>
                       {exp.bullets.filter(Boolean).map((b, bi) => (
-                        <li key={bi} style={{ ...body(), display: "list-item" }}>{b}</li>
+                        <div key={bi} style={{ display: "flex", gap: "7px", alignItems: "flex-start" }}>
+                          <span style={{ ...body(), flexShrink: 0 }}>•</span>
+                          <span style={body()}><HighlightedText text={b} keywords={highlight} /></span>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   )}
                 </div>
               ))}
@@ -531,6 +657,7 @@ export default function ResumePreview({
   template = 0,
   accentColor = DEFAULT_ACCENT,
   sectionOrder = DEFAULT_ORDER,
+  highlightKeywords = [],
 }: Props) {
   const { personalInfo, summary, experience, education, skills } = resume;
 
@@ -543,7 +670,20 @@ export default function ResumePreview({
 
   if (!hasContent) return <EmptyState />;
 
-  if (template === 1) return <Template1 resume={resume} accent={accentColor} sectionOrder={sectionOrder} />;
-  if (template === 2) return <Template2 resume={resume} accent={accentColor} sectionOrder={sectionOrder} />;
-  return <Template0 resume={resume} accent={accentColor} sectionOrder={sectionOrder} />;
+  const highlight = highlightKeywords;
+  const sharedProps = { resume, accent: accentColor, sectionOrder, highlight };
+
+  return (
+    <>
+      {highlight.length > 0 && (
+        <style>{`
+          @keyframes kwShimmer {
+            0%   { background-position: 0% center; }
+            100% { background-position: 200% center; }
+          }
+        `}</style>
+      )}
+      {template === 1 ? <Template1 {...sharedProps} /> : template === 2 ? <Template2 {...sharedProps} /> : <Template0 {...sharedProps} />}
+    </>
+  );
 }

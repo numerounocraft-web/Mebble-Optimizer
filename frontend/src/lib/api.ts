@@ -47,6 +47,40 @@ export async function downloadReport(analysisResult: unknown) {
   return data;
 }
 
+export async function optimizeBuilderResume(
+  resumeData: { summary: string; experience: { id: string; bullets: string[] }[] },
+  missingKeywords: string[],
+  domain: string
+) {
+  const { data } = await client.post("/optimize-builder", {
+    resume: resumeData,
+    missing_keywords: missingKeywords,
+    domain,
+  });
+  return data;
+}
+
+export async function getSummaryVariants(
+  summary: string,
+  missingKeywords: string[],
+  domain: string
+) {
+  const { data } = await client.post("/optimize-summary-variants", {
+    summary,
+    missing_keywords: missingKeywords,
+    domain,
+  });
+  return data;
+}
+
+export async function analyzeBuilderResume(resumeText: string, jobDescription: string) {
+  const { data } = await client.post("/analyze-builder", {
+    resume_text: resumeText,
+    job_description: jobDescription,
+  });
+  return data;
+}
+
 // ── Builder endpoints ─────────────────────────────────────────────────────────
 
 export async function exportResumePDF(resume: Resume): Promise<Blob> {

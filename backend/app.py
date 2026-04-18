@@ -8,6 +8,7 @@ from services.ats_calculator import ATSCalculator
 from services.report_generator import ReportGenerator
 from services.section_optimizer import SectionOptimizer
 from services import linkedin_pdf_parser
+from services import resume_importer
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = Config.MAX_FILE_SIZE
@@ -333,6 +334,32 @@ def download_report():
 
     report_text = report_generator.generate_markdown(data)
     return jsonify({'success': True, 'report': report_text})
+
+
+@app.post('/api/resume/import')
+def resume_import():
+    """Parse a general resume PDF and return builder-compatible data."""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded.'}), 400
+
+    file = request.files['file']
+    if not file.filename or not file.filename.lower().endswith('.pdf'):
+        return jsonify({'success': False, 'error': 'Please upload a PDF file.'}), 400
+
+    try:
+        file_bytes = file.read()
+        text = resume_parser.extract_text(file_bytes)
+        if not text.strip():
+            return jsonify({'success': False, 'error': 'Could not extract text from the PDF.'}), 400
+        sections = resume_parser.parse_sections(text)
+        data = resume_importer.sections_to_builder_data(sections)
+    except Exception:
+        return jsonify({'success': False, 'error': 'Could not parse the PDF. Please try another file.'}), 500
+
+    if not data.get('personalInfo', {}).get('name'):
+        return jsonify({'success': False, 'error': 'Could not find your name in the PDF. Make sure the file is a text-based PDF.'}), 400
+
+    return jsonify({'success': True, 'data': data})
 
 
 @app.post('/api/linkedin/import')

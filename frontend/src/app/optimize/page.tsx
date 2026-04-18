@@ -1,17 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ChevronLeft,
   FileText,
   Upload,
-  Zap,
   Download,
   AlertCircle,
 } from "lucide-react";
 import MebbleLogo from "@/components/ui/MebbleLogo";
 import Button from "@/components/ui/Button";
+import { AnimatedAtom, type AnimatedAtomHandle } from "@/components/ui/AnimatedAtom";
 import Loader from "@/components/ui/Loader";
 import ArcGauge from "@/components/optimizer/ArcGauge";
 import KeywordPills from "@/components/optimizer/KeywordPills";
@@ -28,8 +28,15 @@ interface AnalysisResult {
 }
 
 export default function OptimizePage() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef   = useRef<HTMLInputElement>(null);
+  const analyzeIconRef = useRef<AnimatedAtomHandle>(null);
   const [file, setFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (window.location.search.includes("upload=true")) {
+      fileInputRef.current?.click();
+    }
+  }, []);
   const [dragging, setDragging] = useState(false);
   const [jobDescription, setJobDescription] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -246,9 +253,15 @@ export default function OptimizePage() {
             variant="primary"
             onClick={handleAnalyze}
             disabled={loading}
+            onMouseEnter={() => analyzeIconRef.current?.startAnimation()}
+            onMouseLeave={() => analyzeIconRef.current?.stopAnimation()}
             style={{ width: "100%" }}
           >
-            <Zap size={14} />
+            <AnimatedAtom
+              ref={analyzeIconRef}
+              size={14}
+              style={{ color: "currentColor", pointerEvents: "none" }}
+            />
             {loading ? "Analyzing…" : "Analyze Resume"}
           </Button>
 

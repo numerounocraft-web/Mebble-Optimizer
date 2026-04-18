@@ -5,17 +5,24 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:v1": "cross-env NEXT_PUBLIC_APP_VERSION=v1 next build",
+    "build:v2": "cross-env NEXT_PUBLIC_APP_VERSION=v2 next build",
+    "build:v3": "cross-env NEXT_PUBLIC_APP_VERSION=v3 next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
     "axios": "^1.15.0",
+    "clsx": "^2.1.1",
     "geist": "^1.7.0",
     "html2pdf.js": "^0.14.0",
+    "jspdf": "^4.2.1",
     "lucide-react": "^1.8.0",
+    "motion": "^12.38.0",
     "next": "16.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "tailwind-merge": "^3.5.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -23,6 +30,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",

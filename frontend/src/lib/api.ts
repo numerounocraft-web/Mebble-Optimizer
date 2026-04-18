@@ -81,6 +81,13 @@ export async function analyzeBuilderResume(resumeText: string, jobDescription: s
   return data;
 }
 
+export async function importResumePDF(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await client.post("/resume/import", form);
+  return data;
+}
+
 // ── Builder endpoints ─────────────────────────────────────────────────────────
 
 export async function exportResumePDF(resume: Resume): Promise<Blob> {

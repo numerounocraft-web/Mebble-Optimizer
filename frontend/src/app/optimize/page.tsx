@@ -16,6 +16,7 @@ import Loader from "@/components/ui/Loader";
 import ArcGauge from "@/components/optimizer/ArcGauge";
 import KeywordPills from "@/components/optimizer/KeywordPills";
 import { analyzeResume, downloadReport } from "@/lib/api";
+import { useWindowSize } from "@/lib/hooks";
 
 interface AnalysisResult {
   score: number;
@@ -30,6 +31,9 @@ interface AnalysisResult {
 export default function OptimizePage() {
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const analyzeIconRef = useRef<AnimatedAtomHandle>(null);
+  const { width: windowWidth } = useWindowSize();
+  const isMobile = windowWidth < 768;
+  const isTablet = windowWidth >= 768 && windowWidth < 1100;
   const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
@@ -94,17 +98,20 @@ export default function OptimizePage() {
     <div
       style={{
         display: "flex",
-        height: "100vh",
-        overflow: "hidden",
+        flexDirection: isMobile ? "column" : "row",
+        height: isMobile ? "auto" : "100vh",
+        minHeight: "100vh",
+        overflow: isMobile ? "auto" : "hidden",
         fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
       }}
     >
       {/* ── Left: upload + JD ──────────────────────────────────────────────────── */}
       <div
         style={{
-          width: "380px",
+          width: isMobile ? "100%" : isTablet ? "320px" : "380px",
           flexShrink: 0,
-          borderRight: "1px solid #F1F1F1",
+          borderRight: isMobile ? "none" : "1px solid #F1F1F1",
+          borderBottom: isMobile ? "1px solid #F1F1F1" : "none",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -280,7 +287,7 @@ export default function OptimizePage() {
       </div>
 
       {/* ── Right: results ─────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, backgroundColor: "#F9F9FB", overflowY: "auto", padding: "32px" }}>
+      <div style={{ flex: 1, backgroundColor: "#F9F9FB", overflowY: isMobile ? "visible" : "auto", padding: isMobile ? "24px 16px" : "32px" }}>
         {loading && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
             <Loader label="Analyzing your resume…" />

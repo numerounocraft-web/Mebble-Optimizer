@@ -11,6 +11,8 @@ import {
   GripVertical,
   Share2,
   Check,
+  Eye,
+  PenLine,
 } from "lucide-react";
 import { AnimatedAtom, type AnimatedAtomHandle } from "@/components/ui/AnimatedAtom";
 import ArcGauge from "@/components/optimizer/ArcGauge";
@@ -31,6 +33,7 @@ import {
   type SkillGroup,
 } from "@/lib/schemas/resume";
 import { features } from "@/lib/features";
+import { useWindowSize } from "@/lib/hooks";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface AnalysisData {
@@ -277,6 +280,7 @@ export default function BuilderPage() {
   const [optimizingKeywords, setOptimizingKeywords] = useState(false);
   const [appliedKeywords, setAppliedKeywords] = useState<string[]>([]);
   const [reanalyzing, setReanalyzing] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"edit" | "preview" | "optimize">("edit");
   const preOptimizeRef = useRef<{ resume: Resume; analysisResult: AnalysisData } | null>(null);
   const [summaryApplied, setSummaryApplied] = useState(false);
   const preSummaryRef = useRef<string | null>(null);
@@ -388,6 +392,10 @@ export default function BuilderPage() {
     iconColor:        "#727272",
     settingsActiveBg: "#F1F1F1",
   };
+
+  const { width: windowWidth } = useWindowSize();
+  const isMobile = windowWidth < 768;
+  const isTablet = windowWidth >= 768 && windowWidth < 1100;
 
   // Resume is "ready" when it has a name plus at least some content
   const resumeIsReady = !!(
@@ -1067,10 +1075,10 @@ export default function BuilderPage() {
         {/* Left panel — Optimization (V2+ only) */}
         {features.jdOptimization && <div
           style={{
-            width: "280px",
+            width: isMobile ? "100%" : "280px",
             flexShrink: 0,
-            borderRight: `1px solid ${t.border}`,
-            display: "flex",
+            borderRight: isMobile ? "none" : `1px solid ${t.border}`,
+            display: isMobile ? (mobileTab === "optimize" ? "flex" : "none") : isTablet ? "none" : "flex",
             flexDirection: "column",
             backgroundColor: t.bg,
             overflow: "hidden",
@@ -1466,10 +1474,11 @@ export default function BuilderPage() {
           style={{
             flex: 1,
             overflowY: "auto",
-            display: "flex",
+            overflowX: "auto",
+            display: isMobile ? (mobileTab === "preview" ? "flex" : "none") : "flex",
             flexDirection: "column",
             alignItems: "center",
-            padding: "32px 24px",
+            padding: isMobile ? "16px 16px 80px" : "32px 24px",
             backgroundColor: t.bg,
           }}
         >
@@ -1479,10 +1488,23 @@ export default function BuilderPage() {
               width: "100%",
               maxWidth: "657px",
               backgroundColor: "#FFFFFF",
-              borderRadius: "20px",
+              borderRadius: isMobile ? "12px" : "20px",
               border: `1px solid ${t.resumeBorder}`,
               minHeight: "731px",
               flexShrink: 0,
+              transformOrigin: "top center",
+              transform: (() => {
+                if (!isMobile) return "none";
+                const available = windowWidth - 32;
+                const scale = available < 657 ? available / 657 : 1;
+                return `scale(${scale})`;
+              })(),
+              marginBottom: (() => {
+                if (!isMobile) return 0;
+                const available = windowWidth - 32;
+                const scale = available < 657 ? available / 657 : 1;
+                return scale < 1 ? `${(731 * (scale - 1))}px` : 0;
+              })(),
             }}
           >
             <ResumePreview resume={resume} template={selectedTemplate} accentColor={selectedColor} sectionOrder={sectionOrder} highlightKeywords={appliedKeywords} />
@@ -1492,14 +1514,14 @@ export default function BuilderPage() {
         {/* Right panel — section cards */}
         <div
           style={{
-            width: "400px",
+            width: isMobile ? "100%" : isTablet ? "300px" : "400px",
             flexShrink: 0,
-            borderLeft: `1px solid ${t.border}`,
+            borderLeft: isMobile ? "none" : `1px solid ${t.border}`,
             overflowY: "auto",
-            display: "flex",
+            display: isMobile ? (mobileTab === "edit" ? "flex" : "none") : "flex",
             flexDirection: "column",
             gap: "10px",
-            padding: "24px",
+            padding: isMobile ? "16px 16px 80px" : "24px",
             backgroundColor: t.bg,
             userSelect: dragState ? "none" : "auto",
           }}
@@ -1532,6 +1554,55 @@ export default function BuilderPage() {
           )}
         </div>
       </div>
+
+      {/* ── Mobile bottom tab bar ───────────────────────────────────────────── */}
+      {isMobile && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 64,
+            backgroundColor: "#FFFFFF",
+            borderTop: `1px solid ${t.border}`,
+            display: "flex",
+            zIndex: 200,
+          }}
+        >
+          {(
+            [
+              { id: "edit"     as const, label: "Edit",     icon: <PenLine  size={20} strokeWidth={1.8} /> },
+              { id: "preview"  as const, label: "Preview",  icon: <Eye      size={20} strokeWidth={1.8} /> },
+              ...(features.jdOptimization
+                ? [{ id: "optimize" as const, label: "Optimize", icon: <Sparkles size={20} strokeWidth={1.8} /> }]
+                : []),
+            ] as { id: "edit" | "preview" | "optimize"; label: string; icon: React.ReactNode }[]
+          ).map(({ id, label, icon }) => (
+            <button
+              key={id}
+              onClick={() => setMobileTab(id)}
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 3,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                color: mobileTab === id ? "#028FF4" : "#AEAEB2",
+                transition: "color 0.15s",
+              }}
+            >
+              {icon}
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "-0.01em" }}>{label}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
     </>
   );

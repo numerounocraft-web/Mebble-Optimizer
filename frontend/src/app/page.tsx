@@ -7,6 +7,7 @@ import { X, ArrowRight } from "lucide-react";
 import MebbleLogo from "@/components/ui/MebbleLogo";
 import { AnimatedLayers,    type AnimatedLayersHandle    } from "@/components/ui/AnimatedLayers";
 import { AnimatedScrollText, type AnimatedScrollTextHandle } from "@/components/ui/AnimatedScrollText";
+import { useWindowSize } from "@/lib/hooks";
 
 const STYLES = `
   @keyframes modalIn {
@@ -76,21 +77,23 @@ export default function HomePage() {
     finally  { setUploadLoading(false); }
   }
 
-  const CARD_HEIGHT = 120;
+  const { width: windowWidth } = useWindowSize();
+  const isMobile = windowWidth < 768;
+  const CARD_HEIGHT = isMobile ? 100 : 120;
 
   return (
     <>
       <style>{STYLES}</style>
 
       <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}>
-        <div style={{ flex: 1, backgroundColor: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "48px" }}>
+        <div style={{ flex: 1, backgroundColor: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", padding: isMobile ? "24px" : "48px" }}>
           <div style={{ width: "100%", maxWidth: "360px", display: "flex", flexDirection: "column", gap: "24px" }}>
 
             <div style={{ display: "flex", justifyContent: "flex-start" }}>
               <MebbleLogo height={16} />
             </div>
 
-            <p style={{ fontSize: "32px", fontWeight: 600, lineHeight: "115%", letterSpacing: "-0.04em", margin: 0 }}>
+            <p style={{ fontSize: isMobile ? "26px" : "32px", fontWeight: 600, lineHeight: "115%", letterSpacing: "-0.04em", margin: 0 }}>
               <span style={{ color: "#C3C3C3" }}>The </span>
               <span style={{ color: "#020202" }}>Resume</span>
               <span style={{ color: "#C3C3C3" }}> Builder That Thinks Like a </span>
@@ -135,7 +138,7 @@ export default function HomePage() {
       {/* ── Modal ─────────────────────────────────────────────────────────────── */}
       {modalView && (
         <div onClick={closeModal} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "24px" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "400px", backgroundColor: "#FFFFFF", borderRadius: "20px", padding: "24px", display: "flex", flexDirection: "column", gap: "16px", animation: "modalIn 0.2s cubic-bezier(0.16,1,0.3,1) forwards", boxShadow: "0 20px 60px rgba(0,0,0,0.14)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "400px", backgroundColor: "#FFFFFF", borderRadius: "20px", padding: isMobile ? "16px" : "24px", display: "flex", flexDirection: "column", gap: "16px", animation: "modalIn 0.2s cubic-bezier(0.16,1,0.3,1) forwards", boxShadow: "0 20px 60px rgba(0,0,0,0.14)" }}>
 
             {/* Choice view */}
             {modalView === "choice" && (

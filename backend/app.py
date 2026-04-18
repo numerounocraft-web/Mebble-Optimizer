@@ -1,6 +1,10 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager
 from config import Config
+from models import db, bcrypt
+from routes.auth import auth_bp
+from routes.resumes import resumes_bp
 from services.resume_parser import ResumeParser
 from services.keyword_analyzer import KeywordAnalyzer
 from services.action_words_analyzer import ActionWordsAnalyzer
@@ -11,8 +15,23 @@ from services import linkedin_pdf_parser
 from services import resume_importer
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = Config.MAX_FILE_SIZE
+app.config['MAX_CONTENT_LENGTH']        = Config.MAX_FILE_SIZE
+app.config['SQLALCHEMY_DATABASE_URI']   = Config.SQLALCHEMY_DATABASE_URI
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = Config.SQLALCHEMY_TRACK_MODIFICATIONS
+app.config['JWT_SECRET_KEY']            = Config.JWT_SECRET_KEY
+app.config['JWT_ACCESS_TOKEN_EXPIRES']  = Config.JWT_ACCESS_TOKEN_EXPIRES
+app.config['JWT_REFRESH_TOKEN_EXPIRES'] = Config.JWT_REFRESH_TOKEN_EXPIRES
+
 CORS(app, origins=Config.CORS_ORIGINS)
+db.init_app(app)
+bcrypt.init_app(app)
+JWTManager(app)
+
+app.register_blueprint(auth_bp)
+app.register_blueprint(resumes_bp)
+
+with app.app_context():
+    db.create_all()
 
 resume_parser = ResumeParser()
 keyword_analyzer = KeywordAnalyzer()

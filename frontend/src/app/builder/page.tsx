@@ -34,8 +34,17 @@ import {
 } from "@/lib/schemas/resume";
 import { features } from "@/lib/features";
 import { useWindowSize } from "@/lib/hooks";
+import { useAuth } from "@/lib/auth";
 import { buildResumePDF } from "@/lib/buildResumePDF";
 import { buildResumeDocx } from "@/lib/buildResumeDocx";
+import {
+  listCloudResumes,
+  createCloudResume,
+  getCloudResume,
+  updateCloudResume,
+} from "@/lib/api";
+import AuthModal from "@/components/ui/AuthModal";
+import UserMenu from "@/components/ui/UserMenu";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface AnalysisData {
@@ -283,6 +292,21 @@ export default function BuilderPage() {
   const [appliedKeywords, setAppliedKeywords] = useState<string[]>([]);
   const [reanalyzing, setReanalyzing] = useState(false);
   const [mobileTab, setMobileTab] = useState<"edit" | "preview" | "optimize">("edit");
+
+  // ── Cloud save state ──────────────────────────────────────────────────────
+  const [cloudResumeId,  setCloudResumeId]  = useState<string | null>(null);
+  const [saveStatus,     setSaveStatus]     = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [showAuthModal,  setShowAuthModal]  = useState(false);
+  const [syncPrompt,     setSyncPrompt]     = useState<"none" | "ask">("none");
+  const [pendingCloud,   setPendingCloud]   = useState<{ id: string; data: Resume } | null>(null);
+  const hasSyncedRef = useRef(false);
+
+  // ── Hooks that must come before effects ──────────────────────────────────
+  const { user, accessToken, logout } = useAuth();
+  const { width: windowWidth } = useWindowSize();
+  const isMobile = windowWidth < 768;
+  const isTablet = windowWidth >= 768 && windowWidth < 1100;
+
   const preOptimizeRef = useRef<{ resume: Resume; analysisResult: AnalysisData } | null>(null);
   const [summaryApplied, setSummaryApplied] = useState(false);
   const preSummaryRef = useRef<string | null>(null);
@@ -361,6 +385,64 @@ export default function BuilderPage() {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [exportOpen]);
 
+  // ── On login: sync local ↔ cloud ────────────────────────────────────────
+  useEffect(() => {
+    if (!user || !accessToken) { hasSyncedRef.current = false; return; }
+    if (hasSyncedRef.current) return;
+    hasSyncedRef.current = true;
+
+    const sync = async () => {
+      try {
+        const resumes = await listCloudResumes(accessToken);
+        if (resumes.length > 0) {
+          const { data: cloudData } = await getCloudResume(resumes[0].id, accessToken);
+          setCloudResumeId(resumes[0].id);
+          setPendingCloud({ id: resumes[0].id, data: cloudData });
+          setSyncPrompt("ask");
+        } else {
+          const created = await createCloudResume(resume, accessToken);
+          setCloudResumeId(created.id);
+          setSaveStatus("saved");
+          setTimeout(() => setSaveStatus("idle"), 2000);
+        }
+      } catch { /* silent */ }
+    };
+    sync();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // ── Auto-save to cloud 3 s after resume changes ─────────────────────────
+  useEffect(() => {
+    if (!user || !accessToken || !cloudResumeId) return;
+    setSaveStatus("saving");
+    const timer = setTimeout(async () => {
+      try {
+        await updateCloudResume(cloudResumeId, resume, accessToken);
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 2000);
+      } catch {
+        setSaveStatus("error");
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resume, cloudResumeId]);
+
+  // ── Manual first save (no cloudResumeId yet) ─────────────────────────────
+  async function handleCloudSave() {
+    if (!accessToken) { setShowAuthModal(true); return; }
+    if (cloudResumeId) return; // auto-save handles it
+    setSaveStatus("saving");
+    try {
+      const created = await createCloudResume(resume, accessToken);
+      setCloudResumeId(created.id);
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch {
+      setSaveStatus("error");
+    }
+  }
+
   // Debounced live score — silently re-analyzes 1.5 s after the resume stops changing
   useEffect(() => {
     if (!jdText.trim() || !analysisResult || analyzing) return;
@@ -406,10 +488,6 @@ export default function BuilderPage() {
     iconColor:        "#727272",
     settingsActiveBg: "#F1F1F1",
   };
-
-  const { width: windowWidth } = useWindowSize();
-  const isMobile = windowWidth < 768;
-  const isTablet = windowWidth >= 768 && windowWidth < 1100;
 
   // Resume is "ready" when it has a name plus at least some content
   const resumeIsReady = !!(
@@ -857,6 +935,42 @@ export default function BuilderPage() {
         {/* Right: actions */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
 
+          {/* Cloud save / sign-in */}
+          {!user ? (
+            <button
+              onClick={() => setShowAuthModal(true)}
+              style={{
+                height: "34px", display: "flex", alignItems: "center", gap: "6px",
+                padding: "0 14px", borderRadius: "9999px", border: "1.5px solid #E8E8EA",
+                backgroundColor: "#FFFFFF", cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#028FF4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#028FF4", letterSpacing: "-0.02em" }}>Save</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleCloudSave}
+              disabled={saveStatus === "saving"}
+              style={{
+                height: "34px", display: "flex", alignItems: "center", gap: "6px",
+                padding: "0 14px", borderRadius: "9999px", border: "none",
+                backgroundColor: saveStatus === "saved" ? "#ECFDF5" : saveStatus === "error" ? "#FFF5F5" : "#F4F4F6",
+                cursor: saveStatus === "saving" ? "default" : "pointer",
+                fontFamily: "inherit", transition: "background-color 0.2s",
+              }}
+            >
+              {saveStatus === "saving" && <Loader2 size={12} color="#028FF4" style={{ animation: "spin 1s linear infinite" }} />}
+              {saveStatus === "saved"  && <Check size={12} color="#22C55E" />}
+              <span style={{
+                fontSize: "13px", fontWeight: 600, letterSpacing: "-0.02em",
+                color: saveStatus === "saved" ? "#22C55E" : saveStatus === "error" ? "#EF4444" : "#727272",
+              }}>
+                {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Retry" : "Saved"}
+              </span>
+            </button>
+          )}
+
           {/* Settings — opens template + colour dropdown */}
           <div ref={settingsRef} style={{ position: "relative" }}>
             <button
@@ -1126,6 +1240,9 @@ export default function BuilderPage() {
               </div>
             )}
           </div>
+
+          {/* User avatar / menu */}
+          {user && <UserMenu user={user} onSignOut={logout} />}
         </div>
       </div>
 
@@ -1620,6 +1737,83 @@ export default function BuilderPage() {
           )}
         </div>
       </div>
+
+      {/* ── Auth modal ─────────────────────────────────────────────────────── */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => setShowAuthModal(false)}
+          prompt="Save and sync your resume across devices"
+        />
+      )}
+
+      {/* ── Sync prompt (cloud resume exists after login) ───────────────────── */}
+      {syncPrompt === "ask" && pendingCloud && (
+        <div
+          style={{
+            position: "fixed", inset: 0,
+            backgroundColor: "rgba(0,0,0,0.35)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 9998, padding: "24px",
+          }}
+        >
+          <div
+            style={{
+              width: "100%", maxWidth: "360px",
+              backgroundColor: "#FFFFFF",
+              borderRadius: "20px", padding: "24px",
+              display: "flex", flexDirection: "column", gap: "16px",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.14)",
+              animation: "dropdownScale 0.2s cubic-bezier(0.16,1,0.3,1) forwards",
+            }}
+          >
+            <div>
+              <p style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1F1F1F", letterSpacing: "-0.03em" }}>
+                You have a saved resume
+              </p>
+              <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#9A9A9C", fontWeight: 500, letterSpacing: "-0.01em", lineHeight: "150%" }}>
+                We found a resume saved to your account. Which version would you like to use?
+              </p>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <button
+                onClick={() => {
+                  setResume(pendingCloud.data);
+                  setSyncPrompt("none");
+                  setPendingCloud(null);
+                }}
+                style={{
+                  height: "42px", borderRadius: "10px", border: "none",
+                  backgroundColor: "#028FF4", color: "#FFFFFF",
+                  fontSize: "13px", fontWeight: 600, cursor: "pointer",
+                  fontFamily: "inherit", letterSpacing: "-0.02em",
+                }}
+              >
+                Load cloud version
+              </button>
+              <button
+                onClick={async () => {
+                  setSyncPrompt("none");
+                  setPendingCloud(null);
+                  if (accessToken && pendingCloud) {
+                    try {
+                      await updateCloudResume(pendingCloud.id, resume, accessToken);
+                    } catch { /* silent */ }
+                  }
+                }}
+                style={{
+                  height: "42px", borderRadius: "10px", border: "1.5px solid #E8E8EA",
+                  backgroundColor: "#FFFFFF", color: "#767678",
+                  fontSize: "13px", fontWeight: 600, cursor: "pointer",
+                  fontFamily: "inherit", letterSpacing: "-0.02em",
+                }}
+              >
+                Keep this version (overwrite cloud)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Mobile bottom tab bar ───────────────────────────────────────────── */}
       {isMobile && (

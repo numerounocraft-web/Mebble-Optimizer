@@ -9,10 +9,10 @@ import {
   Plus,
   ChevronDown,
   GripVertical,
-  Settings,
   Share2,
   Check,
 } from "lucide-react";
+import { AnimatedAtom, type AnimatedAtomHandle } from "@/components/ui/AnimatedAtom";
 import ArcGauge from "@/components/optimizer/ArcGauge";
 import KeywordPills from "@/components/optimizer/KeywordPills";
 import { analyzeBuilderResume, optimizeBuilderResume, optimizeSection, getSummaryVariants } from "@/lib/api";
@@ -30,6 +30,7 @@ import {
   type EducationEntry,
   type SkillGroup,
 } from "@/lib/schemas/resume";
+import { features } from "@/lib/features";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface AnalysisData {
@@ -275,6 +276,7 @@ export default function BuilderPage() {
   const [variantIndex, setVariantIndex] = useState(0);
   const [optimizingKeywords, setOptimizingKeywords] = useState(false);
   const [appliedKeywords, setAppliedKeywords] = useState<string[]>([]);
+  const [reanalyzing, setReanalyzing] = useState(false);
   const preOptimizeRef = useRef<{ resume: Resume; analysisResult: AnalysisData } | null>(null);
   const [summaryApplied, setSummaryApplied] = useState(false);
   const preSummaryRef = useRef<string | null>(null);
@@ -288,8 +290,9 @@ export default function BuilderPage() {
   const [settingsClosing,   setSettingsClosing]   = useState(false);
   const [selectedTemplate,  setSelectedTemplate]  = useState(0);
   const [selectedColor,     setSelectedColor]     = useState("#028FF4");
-  const settingsRef  = useRef<HTMLDivElement>(null);
-  const previewRef   = useRef<HTMLDivElement>(null);
+  const settingsRef    = useRef<HTMLDivElement>(null);
+  const previewRef     = useRef<HTMLDivElement>(null);
+  const settingsIconRef = useRef<AnimatedAtomHandle>(null);
 
   function closeSettings() {
     setSettingsClosing(true);
@@ -339,6 +342,34 @@ export default function BuilderPage() {
     if (settingsOpen) document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [settingsOpen]);
+
+  // Debounced live score — silently re-analyzes 1.5 s after the resume stops changing
+  useEffect(() => {
+    if (!jdText.trim() || !analysisResult || analyzing) return;
+    const text = resumeToText();
+    setReanalyzing(true);
+    const timer = setTimeout(async () => {
+      try {
+        const response = await analyzeBuilderResume(text, jdText);
+        const data: AnalysisData = response.data;
+        setAnalysisResult((prev) =>
+          prev
+            ? { ...prev, ats_score: data.ats_score, matched_keywords: data.matched_keywords, missing_keywords: data.missing_keywords }
+            : prev
+        );
+        setAppliedKeywords([]);
+      } catch {
+        // silent — keep showing the last known score
+      } finally {
+        setReanalyzing(false);
+      }
+    }, 1500);
+    return () => {
+      clearTimeout(timer);
+      setReanalyzing(false);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resume, jdText]);
 
   // ── Theme ─────────────────────────────────────────────────────────────────
   const t = {
@@ -464,47 +495,48 @@ export default function BuilderPage() {
     : 0;
 
   // ── Export ─────────────────────────────────────────────────────────────────
-  async function handleExport() {
+  function handleExport() {
     if (!previewRef.current) return;
     setExporting(true);
-    try {
-      const html2pdf = (await import("html2pdf.js")).default;
-      const filename = `${resume.personalInfo.name || "resume"}.pdf`;
 
-      // Temporarily strip UI chrome (rounded corners, border, min-height) directly
-      // on the real element so html2canvas can see it, then restore afterwards.
-      const el = previewRef.current;
-      const prev = {
-        borderRadius: el.style.borderRadius,
-        border:       el.style.border,
-        minHeight:    el.style.minHeight,
-      };
-      el.style.borderRadius = "0";
-      el.style.border       = "none";
-      el.style.minHeight    = "auto";
+    const el = previewRef.current;
 
-      try {
-        await html2pdf()
-          .set({
-            margin: 0,
-            filename,
-            image: { type: "jpeg", quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-            pagebreak: { mode: "avoid-all" },
-          })
-          .from(el)
-          .save();
-      } finally {
-        el.style.borderRadius = prev.borderRadius;
-        el.style.border       = prev.border;
-        el.style.minHeight    = prev.minHeight;
+    // Inject a <style> that hides everything except the preview during print
+    const style = document.createElement("style");
+    style.setAttribute("data-mebble-print", "");
+    style.textContent = `
+      @media print {
+        @page { size: A4 portrait; margin: 0; }
+        body * { visibility: hidden !important; }
+        [data-mebble-preview],
+        [data-mebble-preview] * {
+          visibility: visible !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+        [data-mebble-preview] {
+          position: fixed !important;
+          inset: 0 !important;
+          width: 100% !important;
+          border-radius: 0 !important;
+          border: none !important;
+          box-shadow: none !important;
+          overflow: visible !important;
+        }
       }
-    } catch (err) {
-      console.error("Export failed", err);
-    } finally {
+    `;
+    document.head.appendChild(style);
+    el.setAttribute("data-mebble-preview", "");
+
+    function cleanup() {
+      el.removeAttribute("data-mebble-preview");
+      style.remove();
       setExporting(false);
     }
+
+    window.addEventListener("afterprint", cleanup, { once: true });
+    window.print();
   }
 
   // ── Convert resume state → plain text for the backend analyzer ───────────────
@@ -657,18 +689,22 @@ export default function BuilderPage() {
         update("experience", updated);
       }
 
-      // Track which keywords were added and move them from missing → matched
+      // Track which keywords were added and move them from missing → matched,
+      // then immediately recalculate the score from the new keyword counts.
       const added = analysisResult.missing_keywords;
       setAppliedKeywords(added);
-      setAnalysisResult((prev) =>
-        prev
-          ? {
-              ...prev,
-              matched_keywords: [...prev.matched_keywords, ...added],
-              missing_keywords: [],
-            }
-          : prev
-      );
+      setAnalysisResult((prev) => {
+        if (!prev) return prev;
+        const newMatched = [...prev.matched_keywords, ...added];
+        const total = prev.matched_keywords.length + prev.missing_keywords.length;
+        const newScore = total > 0 ? Math.round((newMatched.length / total) * 100) : prev.ats_score;
+        return {
+          ...prev,
+          ats_score: newScore,
+          matched_keywords: newMatched,
+          missing_keywords: [],
+        };
+      });
     } catch (err) {
       console.error("Keyword optimization failed", err);
       preOptimizeRef.current = null;
@@ -816,6 +852,8 @@ export default function BuilderPage() {
           <div ref={settingsRef} style={{ position: "relative" }}>
             <button
               onClick={() => settingsOpen ? closeSettings() : setSettingsOpen(true)}
+              onMouseEnter={() => settingsIconRef.current?.startAnimation()}
+              onMouseLeave={() => settingsIconRef.current?.stopAnimation()}
               style={{
                 width: "34px",
                 height: "34px",
@@ -828,7 +866,11 @@ export default function BuilderPage() {
                 cursor: "pointer",
               }}
             >
-              <Settings size={16} color={t.iconColor} strokeWidth={1.8} />
+              <AnimatedAtom
+                ref={settingsIconRef}
+                size={16}
+                style={{ color: t.iconColor, pointerEvents: "none" }}
+              />
             </button>
 
             {/* Dropdown */}
@@ -1022,8 +1064,8 @@ export default function BuilderPage() {
           backgroundColor: t.bg,
         }}
       >
-        {/* Left panel — Optimization */}
-        <div
+        {/* Left panel — Optimization (V2+ only) */}
+        {features.jdOptimization && <div
           style={{
             width: "280px",
             flexShrink: 0,
@@ -1191,9 +1233,14 @@ export default function BuilderPage() {
                       <>
                         {/* ATS Score */}
                         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                          <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.07em", color: "#C4C4C4", textTransform: "uppercase" }}>
-                            ATS Score
-                          </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.07em", color: "#C4C4C4", textTransform: "uppercase" }}>
+                              ATS Score
+                            </span>
+                            {reanalyzing && (
+                              <Loader2 size={10} color="#C4C4C4" style={{ animation: "spin 1s linear infinite", flexShrink: 0 }} />
+                            )}
+                          </div>
                           <ArcGauge score={analysisResult.ats_score} />
                         </div>
 
@@ -1412,7 +1459,7 @@ export default function BuilderPage() {
               </div>
             </>
           )}
-        </div>
+        </div>}
 
         {/* Center — Resume preview */}
         <div

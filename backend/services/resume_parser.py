@@ -1,6 +1,10 @@
 import pdfplumber
 import io
 import re
+try:
+    from pypdf import PdfReader as _PdfReader          # pypdf ≥ 3
+except ImportError:
+    from PyPDF2 import PdfReader as _PdfReader         # PyPDF2 fallback
 
 
 # ── Section header registry ───────────────────────────────────────────────────
@@ -116,18 +120,64 @@ class ResumeParser:
         return self.extract_text(file_bytes)
 
     def extract_text(self, file_bytes: bytes) -> str:
-        """Extract text from PDF, attempting layout-aware extraction first."""
-        text_parts = []
-        with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-            for page in pdf.pages:
-                # layout=True preserves column/tab structure better
-                try:
-                    page_text = page.extract_text(layout=True)
-                except TypeError:
-                    page_text = page.extract_text()
-                if page_text:
-                    text_parts.append(page_text)
-        return '\n'.join(text_parts)
+        """Extract text from PDF using multiple strategies in order of preference."""
+
+        # ── Strategy 1: pdfplumber with layout=True ───────────────────────────
+        try:
+            parts = []
+            with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+                for page in pdf.pages:
+                    try:
+                        t = page.extract_text(layout=True)
+                    except Exception:
+                        t = page.extract_text()
+                    if t:
+                        parts.append(t)
+            text = '\n'.join(parts).strip()
+            if text:
+                return text
+        except Exception:
+            pass
+
+        # ── Strategy 2: pdfplumber word-level extraction ──────────────────────
+        try:
+            parts = []
+            with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+                for page in pdf.pages:
+                    words = page.extract_words(
+                        x_tolerance=3, y_tolerance=3,
+                        keep_blank_chars=False,
+                    )
+                    if words:
+                        # Reconstruct lines by grouping words with similar top-y
+                        lines: dict[int, list] = {}
+                        for w in words:
+                            key = round(w['top'] / 4) * 4   # bucket to ~4px
+                            lines.setdefault(key, []).append(w)
+                        for key in sorted(lines):
+                            row = sorted(lines[key], key=lambda w: w['x0'])
+                            parts.append(' '.join(w['text'] for w in row))
+            text = '\n'.join(parts).strip()
+            if text:
+                return text
+        except Exception:
+            pass
+
+        # ── Strategy 3: PyPDF2 / pypdf fallback ──────────────────────────────
+        try:
+            reader = _PdfReader(io.BytesIO(file_bytes))
+            parts = []
+            for page in reader.pages:
+                t = page.extract_text()
+                if t:
+                    parts.append(t)
+            text = '\n'.join(parts).strip()
+            if text:
+                return text
+        except Exception:
+            pass
+
+        return ''
 
     def parse_sections(self, text: str) -> list:
         """

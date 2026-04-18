@@ -9,7 +9,7 @@ import {
   Plus,
   ChevronDown,
   GripVertical,
-  Share2,
+  FileDown,
   Check,
   Eye,
   PenLine,
@@ -34,6 +34,8 @@ import {
 } from "@/lib/schemas/resume";
 import { features } from "@/lib/features";
 import { useWindowSize } from "@/lib/hooks";
+import { buildResumePDF } from "@/lib/buildResumePDF";
+import { buildResumeDocx } from "@/lib/buildResumeDocx";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface AnalysisData {
@@ -292,9 +294,11 @@ export default function BuilderPage() {
   // Navbar state
   const [settingsOpen,      setSettingsOpen]      = useState(false);
   const [settingsClosing,   setSettingsClosing]   = useState(false);
+  const [exportOpen,        setExportOpen]        = useState(false);
   const [selectedTemplate,  setSelectedTemplate]  = useState(0);
   const [selectedColor,     setSelectedColor]     = useState("#028FF4");
   const settingsRef    = useRef<HTMLDivElement>(null);
+  const exportRef      = useRef<HTMLDivElement>(null);
   const previewRef     = useRef<HTMLDivElement>(null);
   const settingsIconRef = useRef<AnimatedAtomHandle>(null);
 
@@ -346,6 +350,16 @@ export default function BuilderPage() {
     if (settingsOpen) document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [settingsOpen]);
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
+      }
+    }
+    if (exportOpen) document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [exportOpen]);
 
   // Debounced live score — silently re-analyzes 1.5 s after the resume stops changing
   useEffect(() => {
@@ -502,49 +516,36 @@ export default function BuilderPage() {
     ? dragState.cardTop + (dragState.currentPointerY - dragState.startPointerY)
     : 0;
 
-  // ── Export ─────────────────────────────────────────────────────────────────
-  function handleExport() {
-    if (!previewRef.current) return;
+  // ── Export — PDF via jsPDF ────────────────────────────────────────────────
+  function handleExportPDF() {
     setExporting(true);
-
-    const el = previewRef.current;
-
-    // Inject a <style> that hides everything except the preview during print
-    const style = document.createElement("style");
-    style.setAttribute("data-mebble-print", "");
-    style.textContent = `
-      @media print {
-        @page { size: A4 portrait; margin: 0; }
-        body * { visibility: hidden !important; }
-        [data-mebble-preview],
-        [data-mebble-preview] * {
-          visibility: visible !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-          color-adjust: exact !important;
-        }
-        [data-mebble-preview] {
-          position: fixed !important;
-          inset: 0 !important;
-          width: 100% !important;
-          border-radius: 0 !important;
-          border: none !important;
-          box-shadow: none !important;
-          overflow: visible !important;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-    el.setAttribute("data-mebble-preview", "");
-
-    function cleanup() {
-      el.removeAttribute("data-mebble-preview");
-      style.remove();
+    setExportOpen(false);
+    try {
+      const doc = buildResumePDF(resume, selectedColor);
+      const filename = `${resume.personalInfo.name || "resume"}.pdf`;
+      doc.save(filename);
+    } finally {
       setExporting(false);
     }
+  }
 
-    window.addEventListener("afterprint", cleanup, { once: true });
-    window.print();
+  // ── Export — Word via docx ────────────────────────────────────────────────
+  async function handleExportDocx() {
+    setExporting(true);
+    setExportOpen(false);
+    try {
+      const blob = await buildResumeDocx(resume, selectedColor);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${resume.personalInfo.name || "resume"}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Word export failed", err);
+    } finally {
+      setExporting(false);
+    }
   }
 
   // ── Convert resume state → plain text for the backend analyzer ───────────────
@@ -1038,28 +1039,93 @@ export default function BuilderPage() {
             )}
           </div>
 
-          {/* Export */}
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            style={{
-              height: "34px",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "0 14px",
-              borderRadius: "9999px",
-              border: "none",
-              backgroundColor: "#E4F3FE",
-              cursor: exporting ? "default" : "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            <span style={{ fontSize: "13px", fontWeight: 600, color: "#028FF4", letterSpacing: "-0.02em" }}>
-              {exporting ? "Exporting…" : "Export"}
-            </span>
-            <Share2 size={13} color="#028FF4" strokeWidth={2} />
-          </button>
+          {/* Export dropdown */}
+          <div ref={exportRef} style={{ position: "relative" }}>
+            <button
+              onClick={() => setExportOpen((o) => !o)}
+              disabled={exporting}
+              style={{
+                height: "34px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "0 14px",
+                borderRadius: "9999px",
+                border: "none",
+                backgroundColor: exportOpen ? "#CBE8FD" : "#E4F3FE",
+                cursor: exporting ? "default" : "pointer",
+                fontFamily: "inherit",
+                transition: "background-color 0.15s",
+              }}
+            >
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#028FF4", letterSpacing: "-0.02em" }}>
+                {exporting ? "Exporting…" : "Export"}
+              </span>
+              <FileDown size={13} color="#028FF4" strokeWidth={2} />
+            </button>
+
+            {exportOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 8px)",
+                  right: 0,
+                  width: "180px",
+                  backgroundColor: t.dropdownBg,
+                  borderRadius: "14px",
+                  padding: "8px",
+                  boxShadow: t.dropdownShadow,
+                  zIndex: 200,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "2px",
+                  animation: "dropdownScale 0.18s cubic-bezier(0.16,1,0.3,1) forwards",
+                  transformOrigin: "top right",
+                }}
+              >
+                {[
+                  { label: "PDF Document", ext: "pdf", onClick: handleExportPDF },
+                  { label: "Word Document", ext: "docx", onClick: handleExportDocx },
+                ].map(({ label, ext, onClick }) => (
+                  <button
+                    key={ext}
+                    onClick={onClick}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      width: "100%",
+                      padding: "9px 12px",
+                      borderRadius: "9px",
+                      border: "none",
+                      background: "none",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      textAlign: "left",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#F4F4F6"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
+                  >
+                    <span style={{
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      letterSpacing: "0.04em",
+                      color: ext === "pdf" ? "#E53E3E" : "#2B6CB0",
+                      backgroundColor: ext === "pdf" ? "#FFF5F5" : "#EBF8FF",
+                      padding: "2px 5px",
+                      borderRadius: "4px",
+                      flexShrink: 0,
+                    }}>
+                      {ext.toUpperCase()}
+                    </span>
+                    <span style={{ fontSize: "12px", fontWeight: 500, color: t.textPrimary, letterSpacing: "-0.01em" }}>
+                      {label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

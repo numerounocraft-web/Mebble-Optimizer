@@ -1365,6 +1365,7 @@ export default function BuilderPage() {
                         borderRadius: "10px",
                         padding: "10px 12px",
                         fontSize: "12px",
+                        fontWeight: 500,
                         fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
                         color: t.textPrimary,
                         backgroundColor: t.surface,
@@ -1376,36 +1377,38 @@ export default function BuilderPage() {
                         width: "100%",
                       }}
                     />
-                    <button
-                      onClick={handleAnalyze}
-                      disabled={!jdText.trim() || analyzing}
-                      style={{
-                        width: "100%",
-                        height: "36px",
-                        borderRadius: "9999px",
-                        border: "none",
-                        backgroundColor: !jdText.trim() ? "#F1F1F1" : "#028FF4",
-                        color: !jdText.trim() ? "#C4C4C4" : "#FFFFFF",
-                        fontSize: "12px",
-                        fontWeight: 600,
-                        letterSpacing: "-0.02em",
-                        cursor: !jdText.trim() || analyzing ? "default" : "pointer",
-                        fontFamily: "inherit",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "6px",
-                        flexShrink: 0,
-                        transition: "background-color 0.15s",
-                      }}
-                    >
-                      {analyzing ? (
-                        <>
-                          <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
-                          Analyzing…
-                        </>
-                      ) : "Analyze Resume"}
-                    </button>
+                    {!isMobile && (
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={!jdText.trim() || analyzing}
+                        style={{
+                          width: "100%",
+                          height: "36px",
+                          borderRadius: "9999px",
+                          border: "none",
+                          backgroundColor: !jdText.trim() ? "#F1F1F1" : "#028FF4",
+                          color: !jdText.trim() ? "#C4C4C4" : "#FFFFFF",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          letterSpacing: "-0.02em",
+                          cursor: !jdText.trim() || analyzing ? "default" : "pointer",
+                          fontFamily: "inherit",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          flexShrink: 0,
+                          transition: "background-color 0.15s",
+                        }}
+                      >
+                        {analyzing ? (
+                          <>
+                            <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+                            Analyzing…
+                          </>
+                        ) : "Analyze Resume"}
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -1823,6 +1826,42 @@ export default function BuilderPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Mobile fixed Analyze button (above tab bar) ─────────────────────── */}
+      {isMobile && mobileTab === "optimize" && (
+        <div style={{ position: "fixed", bottom: 64, left: 0, right: 0, padding: "0 16px 10px", zIndex: 150 }}>
+          <button
+            onClick={handleAnalyze}
+            disabled={!jdText.trim() || analyzing}
+            style={{
+              width: "100%",
+              height: "44px",
+              borderRadius: "12px",
+              border: "none",
+              backgroundColor: !jdText.trim() ? "#F1F1F1" : "#028FF4",
+              color: !jdText.trim() ? "#C4C4C4" : "#FFFFFF",
+              fontSize: "13px",
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
+              cursor: !jdText.trim() || analyzing ? "default" : "pointer",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              boxShadow: "0 4px 16px rgba(2,143,244,0.25)",
+              transition: "background-color 0.15s",
+            }}
+          >
+            {analyzing ? (
+              <>
+                <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
+                Analyzing…
+              </>
+            ) : "Analyze Resume"}
+          </button>
         </div>
       )}
 

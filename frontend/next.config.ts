@@ -2,13 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   async rewrites() {
-    if (process.env.NODE_ENV === "production") return [];
-    return [
-      {
-        source: "/api/:path*",
-        destination: "http://localhost:5000/api/:path*",
-      },
-    ];
+    const destination = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}/_/backend/api/:path*`
+      : "http://localhost:5000/api/:path*";
+    return [{ source: "/api/:path*", destination }];
   },
 };
 

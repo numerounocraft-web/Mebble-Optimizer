@@ -43,17 +43,18 @@ export default function OptimizePage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (result && isMobile) {
-      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-    }
-  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
   const [dragging, setDragging] = useState(false);
   const [jobDescription, setJobDescription] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    if (result && isMobile) {
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    }
+  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleFileDrop(e: React.DragEvent) {
     e.preventDefault();

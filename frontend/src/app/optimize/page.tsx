@@ -189,7 +189,7 @@ export default function OptimizePage() {
                   <span style={{ fontSize: "15px", fontWeight: 600, color: "#028FF4", letterSpacing: "-0.01em" }}>
                     {file.name}
                   </span>
-                  <span style={{ fontSize: "15px", color: "#767678" }}>Click to change</span>
+                  <span style={{ fontSize: "15px", fontWeight: 500, color: "#767678" }}>Click to change</span>
                 </>
               ) : (
                 <>
@@ -238,6 +238,7 @@ export default function OptimizePage() {
                 border: "1px solid #F1F1F1",
                 backgroundColor: "#F9F9FB",
                 fontSize: "15px",
+                fontWeight: 500,
                 color: "#020202",
                 fontFamily: "inherit",
                 letterSpacing: "-0.01em",

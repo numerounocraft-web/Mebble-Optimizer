@@ -31,6 +31,7 @@ interface AnalysisResult {
 export default function OptimizePage() {
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const analyzeIconRef = useRef<AnimatedAtomHandle>(null);
+  const resultsRef     = useRef<HTMLDivElement>(null);
   const { width: windowWidth } = useWindowSize();
   const isMobile = windowWidth < 768;
   const isTablet = windowWidth >= 768 && windowWidth < 1100;
@@ -41,6 +42,12 @@ export default function OptimizePage() {
       fileInputRef.current?.click();
     }
   }, []);
+
+  useEffect(() => {
+    if (result && isMobile) {
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    }
+  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
   const [dragging, setDragging] = useState(false);
   const [jobDescription, setJobDescription] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -244,6 +251,7 @@ export default function OptimizePage() {
                 letterSpacing: "-0.01em",
                 lineHeight: "1.6",
                 resize: "vertical",
+                overflowY: "auto",
                 outline: "none",
               }}
               onFocus={(e) => { e.target.style.borderColor = "#028FF4"; e.target.style.backgroundColor = "#fff"; }}
@@ -289,7 +297,7 @@ export default function OptimizePage() {
       </div>
 
       {/* ── Right: results ─────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, backgroundColor: "#F9F9FB", overflowY: isMobile ? "visible" : "auto", padding: isMobile ? "24px 16px" : "32px" }}>
+      <div ref={resultsRef} style={{ flex: 1, backgroundColor: "#F9F9FB", overflowY: isMobile ? "visible" : "auto", padding: isMobile ? "24px 16px" : "32px" }}>
         {loading && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
             <Loader label="Analyzing your resume…" />

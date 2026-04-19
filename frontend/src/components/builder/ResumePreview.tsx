@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+
 import type { Resume } from "@/lib/schemas/resume";
 
 type SectionId = "personalInfo" | "summary" | "experience" | "education" | "skills";
@@ -64,7 +64,6 @@ const body = (color = "#767678"): React.CSSProperties => ({
 
 /* ── Empty state ────────────────────────────────────────────────────────────── */
 function EmptyState({ onUpload }: { onUpload?: (file: File) => void }) {
-  const fileRef = useRef<HTMLInputElement>(null);
 
   return (
     <div
@@ -160,8 +159,7 @@ function EmptyState({ onUpload }: { onUpload?: (file: File) => void }) {
           </div>
 
           {/* Upload button */}
-          <button
-            onClick={() => fileRef.current?.click()}
+          <label
             style={{
               display: "flex",
               alignItems: "center",
@@ -183,19 +181,17 @@ function EmptyState({ onUpload }: { onUpload?: (file: File) => void }) {
             <span style={{ fontSize: "13px", fontWeight: 600, color: "#028FF4", letterSpacing: "-0.02em" }}>
               Upload existing resume
             </span>
-          </button>
-
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onUpload(file);
-              e.target.value = "";
-            }}
-          />
+            <input
+              type="file"
+              accept=".pdf"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file && onUpload) onUpload(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
         </>
       )}
     </div>

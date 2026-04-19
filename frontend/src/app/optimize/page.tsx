@@ -128,7 +128,7 @@ export default function OptimizePage() {
             ...(isMobile && { position: "sticky", top: 0, backgroundColor: "#FFFFFF", zIndex: 10 }),
           }}
         >
-          <MebbleLogo />
+          <MebbleLogo height={isMobile ? 28 : 22} />
           <Link href="/" style={{ textDecoration: "none" }}>
             <button
               style={{

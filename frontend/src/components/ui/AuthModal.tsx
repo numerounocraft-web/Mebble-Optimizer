@@ -168,21 +168,21 @@ export default function AuthModal({ onClose, onSuccess, prompt }: AuthModalProps
           }}
         >
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <MebbleLogo height={14} />
-              {prompt && (
-                <p style={{ margin: 0, fontSize: "13px", fontWeight: 500, color: "#9A9A9C", letterSpacing: "-0.01em" }}>
-                  {prompt}
-                </p>
-              )}
+              <button
+                onClick={onClose}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#AEAEB2", display: "flex", alignItems: "center", flexShrink: 0, padding: 0 }}
+              >
+                <X size={18} strokeWidth={2} />
+              </button>
             </div>
-            <button
-              onClick={onClose}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "#AEAEB2", display: "flex", alignItems: "center", flexShrink: 0 }}
-            >
-              <X size={18} strokeWidth={2} />
-            </button>
+            {prompt && (
+              <p style={{ margin: 0, fontSize: "13px", fontWeight: 500, color: "#9A9A9C", letterSpacing: "-0.01em", textAlign: "center" }}>
+                {prompt}
+              </p>
+            )}
           </div>
 
           {/* ── Email sent confirmation screen ── */}

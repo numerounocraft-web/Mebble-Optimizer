@@ -954,7 +954,7 @@ export default function BuilderPage() {
         }}
       >
         {/* Left: logo */}
-        <MebbleLogo height={18} />
+        <MebbleLogo height={isMobile ? 26 : 18} />
 
         {/* Right: actions */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1674,7 +1674,7 @@ export default function BuilderPage() {
             overflowX: "auto",
             display: isMobile ? (mobileTab === "preview" ? "flex" : "none") : "flex",
             flexDirection: "column",
-            alignItems: "center",
+            alignItems: isMobile ? "stretch" : "center",
             padding: isMobile ? "16px 16px 80px" : "32px 24px",
             backgroundColor: t.bg,
           }}
@@ -1684,25 +1684,12 @@ export default function BuilderPage() {
             style={{
               position: "relative",
               width: "100%",
-              maxWidth: "657px",
+              maxWidth: isMobile ? "none" : "657px",
               backgroundColor: "#FFFFFF",
               borderRadius: isMobile ? "12px" : "20px",
               border: `1px solid ${t.resumeBorder}`,
-              minHeight: "731px",
+              minHeight: isMobile ? "auto" : "731px",
               flexShrink: 0,
-              transformOrigin: "top center",
-              transform: (() => {
-                if (!isMobile) return "none";
-                const available = windowWidth - 32;
-                const scale = available < 657 ? available / 657 : 1;
-                return `scale(${scale})`;
-              })(),
-              marginBottom: (() => {
-                if (!isMobile) return 0;
-                const available = windowWidth - 32;
-                const scale = available < 657 ? available / 657 : 1;
-                return scale < 1 ? `${(731 * (scale - 1))}px` : 0;
-              })(),
             }}
           >
             {importingResume && (
@@ -1711,7 +1698,9 @@ export default function BuilderPage() {
                 <span style={{ fontSize: "13px", color: "#727272", fontWeight: 500, fontFamily: "var(--font-geist-sans), system-ui, sans-serif", letterSpacing: "-0.02em" }}>Importing resume…</span>
               </div>
             )}
-            <ResumePreview resume={resume} template={selectedTemplate} accentColor={selectedColor} sectionOrder={sectionOrder} highlightKeywords={appliedKeywords} onUpload={handleImportResume} />
+            <div style={isMobile ? { zoom: 1.15 } : undefined}>
+              <ResumePreview resume={resume} template={selectedTemplate} accentColor={selectedColor} sectionOrder={sectionOrder} highlightKeywords={appliedKeywords} onUpload={handleImportResume} />
+            </div>
           </div>
         </div>
 

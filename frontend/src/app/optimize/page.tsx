@@ -125,6 +125,7 @@ export default function OptimizePage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            ...(isMobile && { position: "sticky", top: 0, backgroundColor: "#FFFFFF", zIndex: 10 }),
           }}
         >
           <MebbleLogo />

@@ -942,14 +942,15 @@ export default function BuilderPage() {
       {/* ── Top Navbar ─────────────────────────────────────────────────────── */}
       <div
         style={{
-          height: "56px",
+          height: isMobile ? "98px" : "56px",
           flexShrink: 0,
           backgroundColor: t.navBg,
           borderBottom: `1px solid ${t.border}`,
           display: "flex",
-          alignItems: "center",
+          alignItems: isMobile ? "flex-end" : "center",
           justifyContent: "space-between",
-          padding: "0 24px",
+          padding: isMobile ? "0 24px 14px" : "0 24px",
+          paddingTop: isMobile ? "42px" : 0,
           zIndex: 100,
         }}
       >

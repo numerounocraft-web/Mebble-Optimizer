@@ -125,7 +125,7 @@ export async function buildResumeDocx(resume: Resume, accentColor = "#028FF4"): 
     children.push(...sectionHeading("Experience", accent));
 
     for (const exp of resume.experience) {
-      const titleLine = [exp.title, exp.company].filter(Boolean).join("  ·  ");
+      const titleLine = [exp.title, exp.company].map((s) => s?.trim()).filter(Boolean).join("  ·  ");
       if (titleLine) {
         children.push(
           new Paragraph({
@@ -139,7 +139,7 @@ export async function buildResumeDocx(resume: Resume, accentColor = "#028FF4"): 
 
       const dateStr = [exp.startDate, exp.current ? "Present" : exp.endDate]
         .filter(Boolean).join(" – ");
-      const metaParts = [dateStr, exp.location].filter(Boolean);
+      const metaParts = [dateStr, exp.location?.trim()].filter(Boolean);
       if (metaParts.length) {
         children.push(
           new Paragraph({
@@ -180,7 +180,7 @@ export async function buildResumeDocx(resume: Resume, accentColor = "#028FF4"): 
           })
         );
       }
-      const degreeLine = [edu.degree, edu.field].filter(Boolean).join(", ");
+      const degreeLine = [edu.degree, edu.field].map((s) => s?.trim()).filter(Boolean).join(", ");
       if (degreeLine) {
         children.push(
           new Paragraph({
@@ -218,7 +218,7 @@ export async function buildResumeDocx(resume: Resume, accentColor = "#028FF4"): 
           new Paragraph({
             spacing: { after: 60 },
             children: [
-              new TextRun({ text: `${group.category}: `, bold: true, size: 20, font: "Calibri", color: "141414" }),
+              new TextRun({ text: `${group.category.trim()}: `, bold: true, size: 20, font: "Calibri", color: "141414" }),
               new TextRun({ text: items, size: 20, font: "Calibri", color: "3C3C3C" }),
             ],
           })

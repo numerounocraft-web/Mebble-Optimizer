@@ -97,11 +97,9 @@ export async function exportResumePDF(resume: Resume): Promise<Blob> {
   return data;
 }
 
-// ── Cloud resume endpoints (JWT-authenticated) ────────────────────────────────
+// ── Cloud resume endpoints (Supabase) ────────────────────────────────────────
 
-function authHeaders(token: string) {
-  return { Authorization: `Bearer ${token}` };
-}
+import { supabase } from "./supabase";
 
 export interface CloudResumeMeta {
   id: string;
@@ -110,22 +108,46 @@ export interface CloudResumeMeta {
   created_at: string;
 }
 
-export async function listCloudResumes(token: string): Promise<CloudResumeMeta[]> {
-  const { data } = await client.get("/resumes", { headers: authHeaders(token) });
-  return data.resumes ?? [];
+function resumeTitle(resume: Resume): string {
+  return resume.personalInfo?.name?.trim() || "Untitled Resume";
 }
 
-export async function createCloudResume(resume: Resume, token: string): Promise<CloudResumeMeta> {
-  const { data } = await client.post("/resumes", { data: resume }, { headers: authHeaders(token) });
-  return data.resume;
+export async function listCloudResumes(_token?: string): Promise<CloudResumeMeta[]> {
+  const { data, error } = await supabase
+    .from("resumes")
+    .select("id, title, updated_at, created_at")
+    .order("updated_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
-export async function getCloudResume(id: string, token: string): Promise<{ meta: CloudResumeMeta; data: Resume }> {
-  const { data } = await client.get(`/resumes/${id}`, { headers: authHeaders(token) });
-  return { meta: data.resume, data: data.resume.data as Resume };
+export async function createCloudResume(resume: Resume, _token?: string): Promise<CloudResumeMeta> {
+  const { data, error } = await supabase
+    .from("resumes")
+    .insert({ title: resumeTitle(resume), data: resume })
+    .select("id, title, updated_at, created_at")
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
 }
 
-export async function updateCloudResume(id: string, resume: Resume, token: string): Promise<CloudResumeMeta> {
-  const { data } = await client.put(`/resumes/${id}`, { data: resume }, { headers: authHeaders(token) });
-  return data.resume;
+export async function getCloudResume(id: string, _token?: string): Promise<{ meta: CloudResumeMeta; data: Resume }> {
+  const { data, error } = await supabase
+    .from("resumes")
+    .select("id, title, updated_at, created_at, data")
+    .eq("id", id)
+    .single();
+  if (error) throw new Error(error.message);
+  return { meta: { id: data.id, title: data.title, updated_at: data.updated_at, created_at: data.created_at }, data: data.data as Resume };
+}
+
+export async function updateCloudResume(id: string, resume: Resume, _token?: string): Promise<CloudResumeMeta> {
+  const { data, error } = await supabase
+    .from("resumes")
+    .update({ title: resumeTitle(resume), data: resume })
+    .eq("id", id)
+    .select("id, title, updated_at, created_at")
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
 }

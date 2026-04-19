@@ -8,6 +8,7 @@ import {
   useCallback,
   useRef,
 } from "react";
+import { supabase } from "./supabase";
 
 export interface AuthUser {
   id: string;
@@ -21,6 +22,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  deleteAccount: () => Promise<void>;
   authFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
@@ -33,97 +35,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading]         = useState(true);
   const tokenRef = useRef<string | null>(null);
 
-  // Keep tokenRef in sync so authFetch always sees the latest token
   useEffect(() => { tokenRef.current = accessToken; }, [accessToken]);
 
-  // Restore session from refresh token on mount
+  // Subscribe to Supabase auth state changes (handles restore + login/logout)
   useEffect(() => {
-    const restore = async () => {
-      const rt = localStorage.getItem("mebble_rt");
-      if (!rt) { setLoading(false); return; }
-      try {
-        const res  = await fetch("/api/auth/refresh", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${rt}` },
-        });
-        const json = await res.json();
-        if (json.success) {
-          setAccessToken(json.access_token);
-          setUser(json.user);
-        } else {
-          localStorage.removeItem("mebble_rt");
-        }
-      } catch {
-        // network failure — stay logged out
-      } finally {
-        setLoading(false);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setUser({ id: session.user.id, email: session.user.email! });
+        setAccessToken(session.access_token);
       }
-    };
-    restore();
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setUser({ id: session.user.id, email: session.user.email! });
+        setAccessToken(session.access_token);
+      } else {
+        setUser(null);
+        setAccessToken(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
-    const res  = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error || "Login failed.");
-    localStorage.setItem("mebble_rt", json.refresh_token);
-    setAccessToken(json.access_token);
-    setUser(json.user);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
   };
 
   const register = async (email: string, password: string) => {
-    const res  = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error || "Registration failed.");
-    localStorage.setItem("mebble_rt", json.refresh_token);
-    setAccessToken(json.access_token);
-    setUser(json.user);
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) throw new Error(error.message);
   };
 
-  const logout = useCallback(() => {
-    setUser(null);
-    setAccessToken(null);
-    localStorage.removeItem("mebble_rt");
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
   }, []);
 
-  // authFetch: attaches the current access token and auto-refreshes on 401
+  const deleteAccount = useCallback(async () => {
+    const { error } = await supabase.rpc("delete_user");
+    if (error) throw new Error(error.message);
+    await supabase.auth.signOut();
+  }, []);
+
+  // authFetch: attaches the current Supabase access token, refreshes on 401
   const authFetch = useCallback(async (url: string, options: RequestInit = {}): Promise<Response> => {
+    const getToken = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      return session?.access_token ?? null;
+    };
+
     const headers = new Headers(options.headers as HeadersInit | undefined);
-    if (tokenRef.current) headers.set("Authorization", `Bearer ${tokenRef.current}`);
+    const token   = tokenRef.current ?? await getToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
 
     let res = await fetch(url, { ...options, headers });
 
     if (res.status === 401) {
-      const rt = localStorage.getItem("mebble_rt");
-      if (rt) {
-        const rr   = await fetch("/api/auth/refresh", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${rt}` },
-        });
-        const rj   = await rr.json();
-        if (rj.success) {
-          setAccessToken(rj.access_token);
-          tokenRef.current = rj.access_token;
-          headers.set("Authorization", `Bearer ${rj.access_token}`);
-          res = await fetch(url, { ...options, headers });
-        } else {
-          logout();
-        }
+      const { data: { session } } = await supabase.auth.refreshSession();
+      if (session) {
+        setAccessToken(session.access_token);
+        tokenRef.current = session.access_token;
+        headers.set("Authorization", `Bearer ${session.access_token}`);
+        res = await fetch(url, { ...options, headers });
+      } else {
+        logout();
       }
     }
+
     return res;
   }, [logout]);
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, loading, login, register, logout, authFetch }}>
+    <AuthContext.Provider value={{ user, accessToken, loading, login, register, logout, deleteAccount, authFetch }}>
       {children}
     </AuthContext.Provider>
   );

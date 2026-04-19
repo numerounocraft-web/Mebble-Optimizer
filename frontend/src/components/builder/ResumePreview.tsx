@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import type { Resume } from "@/lib/schemas/resume";
 
 type SectionId = "personalInfo" | "summary" | "experience" | "education" | "skills";
@@ -12,6 +13,7 @@ interface Props {
   accentColor?: string;
   sectionOrder?: SectionId[];
   highlightKeywords?: string[];
+  onUpload?: (file: File) => void;
 }
 
 /* ── Keyword shimmer highlight ──────────────────────────────────────────────── */
@@ -61,7 +63,9 @@ const body = (color = "#767678"): React.CSSProperties => ({
 });
 
 /* ── Empty state ────────────────────────────────────────────────────────────── */
-function EmptyState() {
+function EmptyState({ onUpload }: { onUpload?: (file: File) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
   return (
     <div
       style={{
@@ -136,36 +140,64 @@ function EmptyState() {
           </filter>
         </defs>
       </svg>
+
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-        <p
-          style={{
-            fontSize: "14px",
-            lineHeight: "160%",
-            letterSpacing: "-0.02em",
-            color: "#1F1F1F",
-            fontFamily: FONT,
-            fontWeight: 500,
-            margin: 0,
-            textAlign: "center",
-          }}
-        >
+        <p style={{ fontSize: "14px", lineHeight: "160%", letterSpacing: "-0.02em", color: "#1F1F1F", fontFamily: FONT, fontWeight: 500, margin: 0, textAlign: "center" }}>
           No information to display
         </p>
-        <p
-          style={{
-            fontSize: "13px",
-            lineHeight: "160%",
-            letterSpacing: "-0.02em",
-            color: "#727272",
-            fontFamily: FONT,
-            fontWeight: 500,
-            margin: 0,
-            textAlign: "center",
-          }}
-        >
+        <p style={{ fontSize: "13px", lineHeight: "160%", letterSpacing: "-0.02em", color: "#727272", fontFamily: FONT, fontWeight: 500, margin: 0, textAlign: "center" }}>
           Get started and build your resume.<br />This canvas previews your information.
         </p>
       </div>
+
+      {onUpload && (
+        <>
+          {/* Divider */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", maxWidth: "240px" }}>
+            <div style={{ flex: 1, height: "1px", backgroundColor: "#EBEBEB" }} />
+            <span style={{ fontSize: "11px", color: "#C0C0C0", fontFamily: FONT, fontWeight: 500, letterSpacing: "-0.01em" }}>or</span>
+            <div style={{ flex: 1, height: "1px", backgroundColor: "#EBEBEB" }} />
+          </div>
+
+          {/* Upload button */}
+          <button
+            onClick={() => fileRef.current?.click()}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "7px",
+              height: "36px",
+              padding: "0 18px",
+              borderRadius: "9999px",
+              border: "1.5px solid #E4E4E7",
+              backgroundColor: "#FFFFFF",
+              cursor: "pointer",
+              fontFamily: FONT,
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#028FF4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span style={{ fontSize: "13px", fontWeight: 600, color: "#028FF4", letterSpacing: "-0.02em" }}>
+              Upload existing resume
+            </span>
+          </button>
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".pdf"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onUpload(file);
+              e.target.value = "";
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -658,6 +690,7 @@ export default function ResumePreview({
   accentColor = DEFAULT_ACCENT,
   sectionOrder = DEFAULT_ORDER,
   highlightKeywords = [],
+  onUpload,
 }: Props) {
   const { personalInfo, summary, experience, education, skills } = resume;
 
@@ -668,7 +701,7 @@ export default function ResumePreview({
     education.length > 0 ||
     skills.length > 0;
 
-  if (!hasContent) return <EmptyState />;
+  if (!hasContent) return <EmptyState onUpload={onUpload} />;
 
   const highlight = highlightKeywords;
   const sharedProps = { resume, accent: accentColor, sectionOrder, highlight };

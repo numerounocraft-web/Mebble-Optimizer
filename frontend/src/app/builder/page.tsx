@@ -17,7 +17,7 @@ import {
 import { AnimatedAtom, type AnimatedAtomHandle } from "@/components/ui/AnimatedAtom";
 import ArcGauge from "@/components/optimizer/ArcGauge";
 import KeywordPills from "@/components/optimizer/KeywordPills";
-import { analyzeBuilderResume, optimizeBuilderResume, optimizeSection, getSummaryVariants } from "@/lib/api";
+import { analyzeBuilderResume, optimizeBuilderResume, optimizeSection, getSummaryVariants, importResumePDF } from "@/lib/api";
 import MebbleLogo from "@/components/ui/MebbleLogo";
 import ResumePreview from "@/components/builder/ResumePreview";
 import PersonalInfoSection from "@/components/builder/sections/PersonalInfoSection";
@@ -292,6 +292,7 @@ export default function BuilderPage() {
   const [appliedKeywords, setAppliedKeywords] = useState<string[]>([]);
   const [reanalyzing, setReanalyzing] = useState(false);
   const [mobileTab, setMobileTab] = useState<"edit" | "preview" | "optimize">("edit");
+  const [importingResume, setImportingResume] = useState(false);
 
   // ── Cloud save state ──────────────────────────────────────────────────────
   const [cloudResumeId,  setCloudResumeId]  = useState<string | null>(null);
@@ -626,6 +627,29 @@ export default function BuilderPage() {
     }
   }
 
+  // ── Import PDF into builder ───────────────────────────────────────────────
+  async function handleImportResume(file: File) {
+    setImportingResume(true);
+    try {
+      const result = await importResumePDF(file);
+      if (!result.success) return;
+      const d = result.data;
+      setResume((prev) => ({
+        ...prev,
+        personalInfo: { ...prev.personalInfo, ...(d.personalInfo || {}) },
+        summary:    d.summary    || prev.summary,
+        experience: d.experience?.length ? d.experience.map((e: ExperienceEntry) => ({ ...newExperience(), ...e })) : prev.experience,
+        education:  d.education?.length  ? d.education.map((e: EducationEntry)   => ({ ...newEducation(),  ...e })) : prev.education,
+        skills:     d.skills?.length     ? d.skills                                                                  : prev.skills,
+      }));
+      setOpenSection("personalInfo");
+    } catch {
+      // silent — user can retry
+    } finally {
+      setImportingResume(false);
+    }
+  }
+
   // ── Convert resume state → plain text for the backend analyzer ───────────────
   function resumeToText(): string {
     const { personalInfo, summary, experience, education, skills } = resume;
@@ -948,27 +972,17 @@ export default function BuilderPage() {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#028FF4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
               <span style={{ fontSize: "13px", fontWeight: 600, color: "#028FF4", letterSpacing: "-0.02em" }}>Save</span>
             </button>
-          ) : (
-            <button
-              onClick={handleCloudSave}
-              disabled={saveStatus === "saving"}
-              style={{
-                height: "34px", display: "flex", alignItems: "center", gap: "6px",
-                padding: "0 14px", borderRadius: "9999px", border: "none",
-                backgroundColor: saveStatus === "saved" ? "#ECFDF5" : saveStatus === "error" ? "#FFF5F5" : "#F4F4F6",
-                cursor: saveStatus === "saving" ? "default" : "pointer",
-                fontFamily: "inherit", transition: "background-color 0.2s",
-              }}
-            >
-              {saveStatus === "saving" && <Loader2 size={12} color="#028FF4" style={{ animation: "spin 1s linear infinite" }} />}
-              {saveStatus === "saved"  && <Check size={12} color="#22C55E" />}
+          ) : saveStatus !== "idle" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              {saveStatus === "saving" && <Loader2 size={11} color="#AEAEB2" style={{ animation: "spin 1s linear infinite" }} />}
+              {saveStatus === "saved"  && <Check size={11} color="#22C55E" />}
               <span style={{
-                fontSize: "13px", fontWeight: 600, letterSpacing: "-0.02em",
-                color: saveStatus === "saved" ? "#22C55E" : saveStatus === "error" ? "#EF4444" : "#727272",
+                fontSize: "11px", fontWeight: 500, letterSpacing: "-0.01em",
+                color: saveStatus === "saved" ? "#22C55E" : saveStatus === "error" ? "#EF4444" : "#AEAEB2",
               }}>
-                {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Retry" : "Saved"}
+                {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : "Save failed"}
               </span>
-            </button>
+            </div>
           )}
 
           {/* Settings — opens template + colour dropdown */}
@@ -1668,6 +1682,7 @@ export default function BuilderPage() {
           <div
             ref={previewRef}
             style={{
+              position: "relative",
               width: "100%",
               maxWidth: "657px",
               backgroundColor: "#FFFFFF",
@@ -1690,7 +1705,13 @@ export default function BuilderPage() {
               })(),
             }}
           >
-            <ResumePreview resume={resume} template={selectedTemplate} accentColor={selectedColor} sectionOrder={sectionOrder} highlightKeywords={appliedKeywords} />
+            {importingResume && (
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.85)", borderRadius: "inherit", gap: "10px", zIndex: 10 }}>
+                <Loader2 size={22} color="#028FF4" style={{ animation: "spin 1s linear infinite" }} />
+                <span style={{ fontSize: "13px", color: "#727272", fontWeight: 500, fontFamily: "var(--font-geist-sans), system-ui, sans-serif", letterSpacing: "-0.02em" }}>Importing resume…</span>
+              </div>
+            )}
+            <ResumePreview resume={resume} template={selectedTemplate} accentColor={selectedColor} sectionOrder={sectionOrder} highlightKeywords={appliedKeywords} onUpload={handleImportResume} />
           </div>
         </div>
 

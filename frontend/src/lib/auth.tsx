@@ -19,9 +19,11 @@ interface AuthContextType {
   user: AuthUser | null;
   accessToken: string | null;
   loading: boolean;
+  needsPasswordReset: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   logout: () => void;
   deleteAccount: () => Promise<void>;
   authFetch: (url: string, options?: RequestInit) => Promise<Response>;
@@ -31,9 +33,10 @@ const AuthContext = createContext<AuthContextType>(null!);
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser]               = useState<AuthUser | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [loading, setLoading]         = useState(true);
+  const [user, setUser]                         = useState<AuthUser | null>(null);
+  const [accessToken, setAccessToken]           = useState<string | null>(null);
+  const [loading, setLoading]                   = useState(true);
+  const [needsPasswordReset, setNeedsPasswordReset] = useState(false);
   const tokenRef = useRef<string | null>(null);
 
   useEffect(() => { tokenRef.current = accessToken; }, [accessToken]);
@@ -48,10 +51,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         setUser({ id: session.user.id, email: session.user.email! });
         setAccessToken(session.access_token);
+        if (event === "PASSWORD_RECOVERY") setNeedsPasswordReset(true);
       } else {
         setUser(null);
         setAccessToken(null);
@@ -80,6 +84,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw new Error(error.message);
+    setNeedsPasswordReset(false);
   }, []);
 
   const deleteAccount = useCallback(async () => {
@@ -117,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [logout]);
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, loading, login, register, resetPassword, logout, deleteAccount, authFetch }}>
+    <AuthContext.Provider value={{ user, accessToken, loading, needsPasswordReset, login, register, resetPassword, updatePassword, logout, deleteAccount, authFetch }}>
       {children}
     </AuthContext.Provider>
   );

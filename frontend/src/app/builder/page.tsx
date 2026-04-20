@@ -305,7 +305,7 @@ export default function BuilderPage() {
   const hasSyncedRef = useRef(false);
 
   // ── Hooks that must come before effects ──────────────────────────────────
-  const { user, accessToken, logout } = useAuth();
+  const { user, accessToken, logout, needsPasswordReset } = useAuth();
   const { width: windowWidth } = useWindowSize();
   const isMobile = windowWidth < 768;
   const isTablet = windowWidth >= 768 && windowWidth < 1100;
@@ -1968,11 +1968,12 @@ export default function BuilderPage() {
       )}
 
       {/* ── Auth modal ─────────────────────────────────────────────────────── */}
-      {showAuthModal && (
+      {(showAuthModal || needsPasswordReset) && (
         <AuthModal
           onClose={() => setShowAuthModal(false)}
           onSuccess={() => setShowAuthModal(false)}
-          prompt="Save and sync your resume across devices"
+          prompt={needsPasswordReset ? undefined : "Save and sync your resume across devices"}
+          initialScreen={needsPasswordReset ? "set-password" : "auth"}
         />
       )}
 

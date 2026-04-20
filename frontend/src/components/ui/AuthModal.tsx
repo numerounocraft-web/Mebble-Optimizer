@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Mail } from "lucide-react";
+import { X, Mail, KeyRound } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import MebbleLogo from "@/components/ui/MebbleLogo";
 
@@ -16,6 +16,7 @@ interface AuthModalProps {
   onClose: () => void;
   onSuccess?: () => void;
   prompt?: string;
+  initialScreen?: "auth" | "forgot" | "forgot-sent" | "set-password";
 }
 
 // ── Map Supabase error strings to user-friendly messages ──────────────────────
@@ -79,19 +80,23 @@ function validateForm(
   return null;
 }
 
-export default function AuthModal({ onClose, onSuccess, prompt }: AuthModalProps) {
-  const { login, register, resetPassword } = useAuth();
+export default function AuthModal({ onClose, onSuccess, prompt, initialScreen = "auth" }: AuthModalProps) {
+  const { login, register, resetPassword, updatePassword } = useAuth();
 
   const [tab,          setTab]          = useState<"signin" | "signup">("signin");
-  const [screen,       setScreen]       = useState<"auth" | "forgot" | "forgot-sent">("auth");
+  const [screen,       setScreen]       = useState<"auth" | "forgot" | "forgot-sent" | "set-password">(initialScreen);
   const [email,        setEmail]        = useState("");
   const [password,     setPassword]     = useState("");
   const [confirm,      setConfirm]      = useState("");
   const [loading,      setLoading]      = useState(false);
   const [fieldError,   setFieldError]   = useState<FieldError | null>(null);
   const [emailSent,    setEmailSent]    = useState(false);
-  const [resetEmail,   setResetEmail]   = useState("");
-  const [resetError,   setResetError]   = useState<string | null>(null);
+  const [resetEmail,     setResetEmail]     = useState("");
+  const [resetError,     setResetError]     = useState<string | null>(null);
+  const [newPassword,    setNewPassword]    = useState("");
+  const [newConfirm,     setNewConfirm]     = useState("");
+  const [newPwError,     setNewPwError]     = useState<string | null>(null);
+  const [newPwSuccess,   setNewPwSuccess]   = useState(false);
 
   function switchTab(t: "signin" | "signup") {
     setTab(t);
@@ -114,6 +119,29 @@ export default function AuthModal({ onClose, onSuccess, prompt }: AuthModalProps
     } catch (err: unknown) {
       const raw = err instanceof Error ? err.message : "Something went wrong.";
       setResetError(mapError(raw, "signin").message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setNewPwError(null);
+    if (!newPassword || newPassword.length < 6) {
+      setNewPwError("Password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== newConfirm) {
+      setNewPwError("Passwords do not match.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await updatePassword(newPassword);
+      setNewPwSuccess(true);
+    } catch (err: unknown) {
+      const raw = err instanceof Error ? err.message : "Something went wrong.";
+      setNewPwError(mapError(raw, "signin").message);
     } finally {
       setLoading(false);
     }
@@ -208,8 +236,105 @@ export default function AuthModal({ onClose, onSuccess, prompt }: AuthModalProps
             )}
           </div>
 
-          {/* ── Forgot password screen ── */}
-          {screen === "forgot" ? (
+          {/* ── Set new password screen (after clicking reset link) ── */}
+          {screen === "set-password" ? (
+            newPwSuccess ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "8px 0 4px" }}>
+                <div style={{ width: "48px", height: "48px", borderRadius: "14px", backgroundColor: "#F0FFF4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1F1F1F", letterSpacing: "-0.03em", fontFamily: FONT }}>
+                    Password updated!
+                  </p>
+                  <p style={{ margin: 0, fontSize: "13px", color: "#9A9A9C", fontWeight: 500, letterSpacing: "-0.01em", lineHeight: "155%", fontFamily: FONT }}>
+                    Your new password has been saved. You&apos;re now signed in.
+                  </p>
+                </div>
+                <button
+                  onClick={() => { onSuccess?.(); onClose(); }}
+                  style={{
+                    width: "100%", height: "42px", borderRadius: "9999px", border: "none",
+                    backgroundColor: "#028FF4", color: "#FFFFFF",
+                    fontSize: "13px", fontWeight: 600, cursor: "pointer",
+                    fontFamily: FONT, letterSpacing: "-0.02em",
+                  }}
+                >
+                  Continue
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "10px", backgroundColor: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <KeyRound size={15} color="#028FF4" strokeWidth={2} />
+                    </div>
+                    <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1F1F1F", letterSpacing: "-0.03em", fontFamily: FONT }}>
+                      Set a new password
+                    </p>
+                  </div>
+                  <p style={{ margin: 0, fontSize: "13px", color: "#9A9A9C", fontWeight: 500, letterSpacing: "-0.01em", lineHeight: "155%", fontFamily: FONT }}>
+                    Choose a new password for your account.
+                  </p>
+                </div>
+                <form onSubmit={handleSetPassword} style={{ display: "flex", flexDirection: "column", gap: "10px" }} noValidate>
+                  <input
+                    type="password"
+                    placeholder="New password"
+                    value={newPassword}
+                    onChange={(e) => { setNewPassword(e.target.value); setNewPwError(null); }}
+                    style={{
+                      width: "100%", height: "42px", padding: "0 14px",
+                      borderRadius: "9999px",
+                      border: `1.5px solid ${newPwError ? "#EF4444" : "#EBEBEB"}`,
+                      fontSize: "13px", fontFamily: FONT, color: "#1F1F1F",
+                      backgroundColor: newPwError ? "#FFF8F8" : "#FAFAFA",
+                      outline: "none", boxSizing: "border-box" as const,
+                      letterSpacing: "-0.01em",
+                    }}
+                    onFocus={(e) => { if (!newPwError) { e.target.style.borderColor = "#028FF4"; e.target.style.backgroundColor = "#fff"; } }}
+                    onBlur={(e)  => { if (!newPwError) { e.target.style.borderColor = "#EBEBEB"; e.target.style.backgroundColor = "#FAFAFA"; } }}
+                  />
+                  <input
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={newConfirm}
+                    onChange={(e) => { setNewConfirm(e.target.value); setNewPwError(null); }}
+                    style={{
+                      width: "100%", height: "42px", padding: "0 14px",
+                      borderRadius: "9999px",
+                      border: `1.5px solid ${newPwError ? "#EF4444" : "#EBEBEB"}`,
+                      fontSize: "13px", fontFamily: FONT, color: "#1F1F1F",
+                      backgroundColor: newPwError ? "#FFF8F8" : "#FAFAFA",
+                      outline: "none", boxSizing: "border-box" as const,
+                      letterSpacing: "-0.01em",
+                    }}
+                    onFocus={(e) => { if (!newPwError) { e.target.style.borderColor = "#028FF4"; e.target.style.backgroundColor = "#fff"; } }}
+                    onBlur={(e)  => { if (!newPwError) { e.target.style.borderColor = "#EBEBEB"; e.target.style.backgroundColor = "#FAFAFA"; } }}
+                  />
+                  {newPwError && (
+                    <p style={{ margin: 0, fontSize: "11px", color: "#EF4444", fontWeight: 500, letterSpacing: "-0.01em", fontFamily: FONT }}>
+                      {newPwError}
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                      height: "42px", borderRadius: "9999px", border: "none",
+                      backgroundColor: loading ? "#C8E4FF" : "#028FF4", color: "#FFFFFF",
+                      fontSize: "13px", fontWeight: 600, cursor: loading ? "default" : "pointer",
+                      fontFamily: FONT, letterSpacing: "-0.02em", transition: "background-color 0.15s",
+                    }}
+                  >
+                    {loading ? "Saving…" : "Save new password"}
+                  </button>
+                </form>
+              </div>
+            )
+
+          ) : screen === "forgot" ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1F1F1F", letterSpacing: "-0.03em", fontFamily: FONT }}>

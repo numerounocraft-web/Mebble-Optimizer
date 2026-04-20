@@ -14,6 +14,7 @@ interface Props {
   sectionOrder?: SectionId[];
   highlightKeywords?: string[];
   onUpload?: (file: File) => void;
+  forPrint?: boolean;
 }
 
 /* ── Keyword shimmer highlight ──────────────────────────────────────────────── */
@@ -513,92 +514,52 @@ function Template1({ resume, accent, sectionOrder, highlight }: { resume: Resume
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   TEMPLATE 2 — Modern Sidebar
-   Sidebar: name + contact + skills/education (ordered) · Main: summary + exp (ordered)
+   TEMPLATE 2 — Accent Header
+   Full-width accent-coloured header (white name + contact) · single-column body
+   Section headings: 3 px accent left-border stripe + uppercase label + rule
 ══════════════════════════════════════════════════════════════════════════════ */
-function Template2({ resume, accent, sectionOrder, highlight }: { resume: Resume; accent: string; sectionOrder: SectionId[]; highlight: string[] }) {
+function Template2({ resume, accent, sectionOrder, highlight, forPrint }: { resume: Resume; accent: string; sectionOrder: SectionId[]; highlight: string[]; forPrint?: boolean }) {
   const { personalInfo, summary, experience, education, skills } = resume;
   const contactItems = buildContactItems(resume);
-  const sidebarBg = "#EFF6FF";
 
-  const sidebarIds = sectionOrder.filter((id) => id === "skills"  || id === "education");
-  const mainIds    = sectionOrder.filter((id) => id === "summary" || id === "experience");
-
-  function renderSidebar(id: SectionId) {
-    switch (id) {
-      case "skills":
-        return skills.length === 0 ? null : (
-          <div key="skills" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <span style={{ fontSize: "10px", letterSpacing: "0.10em", color: accent, fontWeight: 700, fontFamily: FONT, display: "block" }}>
-              SKILLS
-            </span>
-            {skills.map((group) => (
-              <div key={group.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                {group.category && (
-                  <span style={{ fontSize: "11px", fontWeight: 600, color: "#1F1F1F", fontFamily: FONT }}>
-                    {group.category}
-                  </span>
-                )}
-                <p style={{ ...body(), fontSize: "11px" }}>{group.items.join(", ")}</p>
-              </div>
-            ))}
-          </div>
-        );
-
-      case "education":
-        return education.length === 0 ? null : (
-          <div key="education" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <span style={{ fontSize: "10px", letterSpacing: "0.10em", color: accent, fontWeight: 700, fontFamily: FONT, display: "block" }}>
-              EDUCATION
-            </span>
-            {education.map((edu) => (
-              <div key={edu.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                <span style={{ fontSize: "11px", fontWeight: 600, color: "#1F1F1F", fontFamily: FONT }}>
-                  {edu.institution || "Institution"}
-                </span>
-                <p style={{ ...body(), fontSize: "11px" }}>
-                  {[edu.degree, edu.field].filter(Boolean).join(", ")}
-                </p>
-                {(edu.startDate || edu.endDate) && (
-                  <p style={{ ...body(), fontSize: "10px", color: "#AEAEB2" }}>
-                    {edu.startDate}{edu.startDate && edu.endDate ? " – " : ""}{edu.endDate}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        );
-
-      default: return null;
-    }
+  function SectionHeading({ title }: { title: string }) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+        <div style={{ width: "3px", alignSelf: "stretch", minHeight: "16px", backgroundColor: accent, borderRadius: "2px", flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", color: "#1A1A1A", fontFamily: FONT }}>
+            {title.toUpperCase()}
+          </span>
+          <div style={{ height: "1px", backgroundColor: "#EBEBEB", marginTop: "4px" }} />
+        </div>
+      </div>
+    );
   }
 
-  function renderMain(id: SectionId) {
+  function renderSection(id: SectionId) {
     switch (id) {
+      case "personalInfo": return null;
+
       case "summary":
         return !summary ? null : (
-          <div key="summary" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <span style={{ fontSize: "11px", letterSpacing: "0.08em", color: accent, fontWeight: 700, fontFamily: FONT }}>
-              PROFESSIONAL SUMMARY
-            </span>
-            <div style={{ height: "1.5px", backgroundColor: "#E8E8E8", marginBottom: "6px" }} />
-            <p style={body()}>{summary}</p>
+          <div key="summary" style={{ marginBottom: "18px" }}>
+            <SectionHeading title="Professional Summary" />
+            <p style={{ ...body(), lineHeight: "170%", margin: 0 }}>
+              <HighlightedText text={summary} keywords={highlight} />
+            </p>
           </div>
         );
 
       case "experience":
         return experience.length === 0 ? null : (
-          <div key="experience" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <span style={{ fontSize: "11px", letterSpacing: "0.08em", color: accent, fontWeight: 700, fontFamily: FONT }}>
-              EXPERIENCE
-            </span>
-            <div style={{ height: "1.5px", backgroundColor: "#E8E8E8", marginBottom: "6px" }} />
+          <div key="experience" style={{ marginBottom: "18px" }}>
+            <SectionHeading title="Experience" />
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               {experience.map((exp) => (
-                <div key={exp.id} style={{ display: "flex", flexDirection: "column", gap: "3px", pageBreakInside: "avoid", breakInside: "avoid" }}>
+                <div key={exp.id}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" }}>
-                    <span style={{ fontSize: "13px", fontWeight: 600, color: "#1F1F1F", fontFamily: FONT, letterSpacing: "-0.02em" }}>
-                      {exp.title || "Job Title"}
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#1A1A1A", letterSpacing: "-0.02em", fontFamily: FONT }}>
+                      {exp.title}
                     </span>
                     {(exp.startDate || exp.endDate || exp.current) && (
                       <span style={{ ...body(), fontSize: "11px", whiteSpace: "nowrap", flexShrink: 0 }}>
@@ -607,20 +568,66 @@ function Template2({ resume, accent, sectionOrder, highlight }: { resume: Resume
                     )}
                   </div>
                   {exp.company && (
-                    <p style={{ ...body(accent), fontSize: "12px", fontWeight: 600 }}>
+                    <p style={{ fontSize: "12px", fontWeight: 600, color: accent, fontFamily: FONT, margin: "2px 0 6px" }}>
                       {exp.company}{exp.location ? ` · ${exp.location}` : ""}
                     </p>
                   )}
-                  {exp.bullets.filter(Boolean).length > 0 && (
-                    <div style={{ margin: "4px 0 0 0", display: "flex", flexDirection: "column", gap: "2px" }}>
-                      {exp.bullets.filter(Boolean).map((b, bi) => (
-                        <div key={bi} style={{ display: "flex", gap: "7px", alignItems: "flex-start" }}>
-                          <span style={{ ...body(), flexShrink: 0 }}>•</span>
-                          <span style={body()}><HighlightedText text={b} keywords={highlight} /></span>
-                        </div>
-                      ))}
-                    </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                    {exp.bullets.filter(Boolean).map((b, bi) => (
+                      <div key={bi} style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                        <span style={{ color: accent, flexShrink: 0, fontSize: "13px", lineHeight: "155%", fontWeight: 700 }}>·</span>
+                        <span style={body()}><HighlightedText text={b} keywords={highlight} /></span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case "education":
+        return education.length === 0 ? null : (
+          <div key="education" style={{ marginBottom: "18px" }}>
+            <SectionHeading title="Education" />
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {education.map((ed) => (
+                <div key={ed.id}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#1A1A1A", letterSpacing: "-0.02em", fontFamily: FONT }}>
+                      {ed.institution}
+                    </span>
+                    {(ed.startDate || ed.endDate) && (
+                      <span style={{ ...body(), fontSize: "11px", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {ed.startDate}{ed.startDate && ed.endDate ? " – " : ""}{ed.endDate}
+                      </span>
+                    )}
+                  </div>
+                  {(ed.degree || ed.field) && (
+                    <p style={{ fontSize: "12px", fontWeight: 600, color: accent, fontFamily: FONT, margin: "2px 0 0" }}>
+                      {[ed.degree, ed.field].filter(Boolean).join(", ")}
+                      {ed.gpa ? ` · GPA ${ed.gpa}` : ""}
+                    </p>
                   )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case "skills":
+        return skills.length === 0 ? null : (
+          <div key="skills" style={{ marginBottom: "18px" }}>
+            <SectionHeading title="Skills" />
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+              {skills.map((group) => (
+                <div key={group.id} style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "baseline" }}>
+                  {group.category && (
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#1A1A1A", fontFamily: FONT, flexShrink: 0 }}>
+                      {group.category}:
+                    </span>
+                  )}
+                  <span style={body()}>{group.items.join(", ")}</span>
                 </div>
               ))}
             </div>
@@ -632,46 +639,31 @@ function Template2({ resume, accent, sectionOrder, highlight }: { resume: Resume
   }
 
   return (
-    <div style={{ fontFamily: FONT, display: "flex", minHeight: "100%", borderRadius: "20px", overflow: "hidden" }}>
-      {/* Left sidebar */}
-      <div
-        style={{
-          width: "32%",
-          flexShrink: 0,
-          backgroundColor: sidebarBg,
-          padding: "28px 20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "20px",
-        }}
-      >
+    <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", borderRadius: forPrint ? 0 : "20px", overflow: forPrint ? "visible" : "hidden" }}>
+      {/* ── Accent header ── */}
+      <div style={{ backgroundColor: accent, padding: "28px 28px 22px" }}>
         {personalInfo.name && (
-          <div>
-            <span style={{ fontSize: "16px", lineHeight: "130%", letterSpacing: "-0.03em", color: "#1F1F1F", fontWeight: 700, fontFamily: FONT }}>
-              {personalInfo.name}
-            </span>
+          <div style={{ fontSize: "26px", fontWeight: 800, letterSpacing: "-0.03em", color: "#FFFFFF", lineHeight: "1.1", marginBottom: "10px", fontFamily: FONT }}>
+            {personalInfo.name}
           </div>
         )}
         {contactItems.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <span style={{ fontSize: "10px", letterSpacing: "0.10em", color: accent, fontWeight: 700, fontFamily: FONT, marginBottom: "4px", display: "block" }}>
-              CONTACT
-            </span>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}>
             {contactItems.map((item, i) => (
-              <div key={i}>
+              <span key={i} style={{ fontSize: "11px", color: "rgba(255,255,255,0.85)", fontWeight: 500, fontFamily: FONT, display: "flex", alignItems: "center" }}>
+                {i > 0 && <span style={{ margin: "0 8px", color: "rgba(255,255,255,0.4)" }}>|</span>}
                 {item.kind === "link"
-                  ? <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ ...body(accent), fontSize: "11px", textDecoration: "none", wordBreak: "break-all" }}>{item.label}</a>
-                  : <p style={{ ...body(), fontSize: "11px" }}>{item.value}</p>}
-              </div>
+                  ? <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ color: "#FFFFFF", textDecoration: "none", fontWeight: 600 }}>{item.label}</a>
+                  : <span style={{ wordBreak: "break-all" }}>{item.value}</span>}
+              </span>
             ))}
           </div>
         )}
-        {sidebarIds.map((id) => renderSidebar(id))}
       </div>
 
-      {/* Right main content */}
-      <div style={{ flex: 1, padding: "28px 24px", display: "flex", flexDirection: "column", gap: "20px" }}>
-        {mainIds.map((id) => renderMain(id))}
+      {/* ── Body ── */}
+      <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column" }}>
+        {sectionOrder.map((id) => renderSection(id))}
       </div>
     </div>
   );
@@ -687,6 +679,7 @@ export default function ResumePreview({
   sectionOrder = DEFAULT_ORDER,
   highlightKeywords = [],
   onUpload,
+  forPrint = false,
 }: Props) {
   const { personalInfo, summary, experience, education, skills } = resume;
 
@@ -699,7 +692,8 @@ export default function ResumePreview({
 
   if (!hasContent) return <EmptyState onUpload={onUpload} />;
 
-  const highlight = highlightKeywords;
+  // Strip highlights in print mode — gradient text can misrender in PDF
+  const highlight = forPrint ? [] : highlightKeywords;
   const sharedProps = { resume, accent: accentColor, sectionOrder, highlight };
 
   return (
@@ -712,7 +706,7 @@ export default function ResumePreview({
           }
         `}</style>
       )}
-      {template === 1 ? <Template1 {...sharedProps} /> : template === 2 ? <Template2 {...sharedProps} /> : <Template0 {...sharedProps} />}
+      {template === 1 ? <Template1 {...sharedProps} /> : template === 2 ? <Template2 {...sharedProps} forPrint={forPrint} /> : <Template0 {...sharedProps} />}
     </>
   );
 }

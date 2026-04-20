@@ -35,7 +35,6 @@ import {
 import { features } from "@/lib/features";
 import { useWindowSize } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth";
-import { buildResumePDF } from "@/lib/buildResumePDF";
 import { buildResumeDocx } from "@/lib/buildResumeDocx";
 import {
   listCloudResumes,
@@ -290,6 +289,8 @@ export default function BuilderPage() {
   const [variantIndex, setVariantIndex] = useState(0);
   const [optimizingKeywords, setOptimizingKeywords] = useState(false);
   const [appliedKeywords, setAppliedKeywords] = useState<string[]>([]);
+  const [actionWordsApplied, setActionWordsApplied] = useState(false);
+  const preActionWordsRef = useRef<Resume | null>(null);
   const [reanalyzing, setReanalyzing] = useState(false);
   const [mobileTab, setMobileTab] = useState<"edit" | "preview" | "optimize">("edit");
   const [importingResume, setImportingResume] = useState(false);
@@ -595,17 +596,17 @@ export default function BuilderPage() {
     ? dragState.cardTop + (dragState.currentPointerY - dragState.startPointerY)
     : 0;
 
-  // ── Export — PDF via jsPDF ────────────────────────────────────────────────
+  // ── Export — PDF via browser print engine ────────────────────────────────
+  // Saves resume state to sessionStorage then opens /print in a new tab.
+  // The print page renders the exact same ResumePreview at A4 size and
+  // auto-triggers window.print(), producing a text-based (ATS-ready) PDF.
   function handleExportPDF() {
-    setExporting(true);
     setExportOpen(false);
-    try {
-      const doc = buildResumePDF(resume, selectedColor);
-      const filename = `${resume.personalInfo.name || "resume"}.pdf`;
-      doc.save(filename);
-    } finally {
-      setExporting(false);
-    }
+    sessionStorage.setItem(
+      "mebble_print",
+      JSON.stringify({ resume, template: selectedTemplate, accentColor: selectedColor, sectionOrder }),
+    );
+    window.open("/print", "_blank");
   }
 
   // ── Export — Word via docx ────────────────────────────────────────────────
@@ -709,8 +710,10 @@ export default function BuilderPage() {
     setVariantIndex(0);
     setAppliedKeywords([]);
     setSummaryApplied(false);
+    setActionWordsApplied(false);
     preOptimizeRef.current = null;
     preSummaryRef.current = null;
+    preActionWordsRef.current = null;
     setActiveLeftTab("optimization");
 
     try {
@@ -830,7 +833,46 @@ export default function BuilderPage() {
     setResume(preOptimizeRef.current.resume);
     setAnalysisResult(preOptimizeRef.current.analysisResult);
     setAppliedKeywords([]);
+    setActionWordsApplied(false);
+    preActionWordsRef.current = null;
     preOptimizeRef.current = null;
+  }
+
+  // ── Apply action word substitutions across resume text ────────────────────
+  function handleApplyActionWords() {
+    if (!analysisResult?.action_words_analysis?.suggestions?.length) return;
+    preActionWordsRef.current = resume;
+    const suggestions = analysisResult.action_words_analysis.suggestions;
+
+    function replaceIn(text: string): string {
+      let result = text;
+      for (const { current, suggested } of suggestions) {
+        const regex = new RegExp(`\\b${current}\\b`, "gi");
+        result = result.replace(regex, (match) =>
+          match[0] === match[0].toUpperCase() && match[0] !== match[0].toLowerCase()
+            ? suggested.charAt(0).toUpperCase() + suggested.slice(1)
+            : suggested.toLowerCase()
+        );
+      }
+      return result;
+    }
+
+    const newSummary = replaceIn(resume.summary ?? "");
+    const newExperience = resume.experience.map((exp) => ({
+      ...exp,
+      bullets: exp.bullets.map(replaceIn),
+    }));
+
+    setResume((prev) => ({ ...prev, summary: newSummary, experience: newExperience }));
+    setActionWordsApplied(true);
+  }
+
+  function handleUndoActionWords() {
+    if (!preActionWordsRef.current) return;
+    const snap = preActionWordsRef.current;
+    setResume((prev) => ({ ...prev, summary: snap.summary, experience: snap.experience }));
+    setActionWordsApplied(false);
+    preActionWordsRef.current = null;
   }
 
   // ── Render a single section card ───────────────────────────────────────────
@@ -911,6 +953,22 @@ export default function BuilderPage() {
         );
     }
   }
+
+  // ── Composite ATS display score ───────────────────────────────────────────
+  // Keyword match contributes up to (100 - available bonuses) points so that
+  // perfect keyword coverage alone cannot reach 100; each improvement adds its bonus.
+  const hasSummaryImprovement = summaryVariants.length > 0;
+  const hasActionWordImprovement = (analysisResult?.action_words_analysis?.suggestions?.length ?? 0) > 0;
+  const summaryBonus = hasSummaryImprovement ? 15 : 0;
+  const actionBonus = hasActionWordImprovement ? 15 : 0;
+  const keywordMax = 100 - summaryBonus - actionBonus;
+  const displayScore = analysisResult
+    ? Math.min(100, Math.round(
+        analysisResult.ats_score * (keywordMax / 100)
+        + (summaryApplied ? summaryBonus : 0)
+        + (actionWordsApplied ? actionBonus : 0)
+      ))
+    : 0;
 
   // ── JSX ───────────────────────────────────────────────────────────────────
   return (
@@ -1075,27 +1133,31 @@ export default function BuilderPage() {
                         <rect x="36" y="64" width="34" height="3"  rx="1" fill="#E2E8F0" />
                         <line x1="33" y1="20" x2="33" y2="82" stroke="#E2E8F0" strokeWidth="1" />
                       </svg>,
-                      /* Template 2 — Modern sidebar */
+                      /* Template 2 — Accent Header */
                       <svg key={2} width="78" height="90" viewBox="0 0 78 90" fill="none">
-                        <rect x="1" y="1" width="76" height="88" rx="5" fill="#F9F9FB" stroke={selectedTemplate === 2 ? "#028FF4" : "#D0D8E4"} strokeWidth={selectedTemplate === 2 ? 2 : 1} />
-                        <rect x="1"  y="1"  width="22" height="88" rx="5" fill="#E8F4FD" />
-                        <rect x="4"  y="8"  width="16" height="8"  rx="2" fill="#C2D9F7" />
-                        <rect x="4"  y="22" width="16" height="3"  rx="1" fill="#BFDBFE" />
-                        <rect x="4"  y="28" width="16" height="3"  rx="1" fill="#DBEAFE" />
-                        <rect x="4"  y="34" width="16" height="3"  rx="1" fill="#DBEAFE" />
-                        <rect x="4"  y="44" width="16" height="3"  rx="1" fill="#BFDBFE" />
-                        <rect x="4"  y="50" width="16" height="3"  rx="1" fill="#DBEAFE" />
-                        <rect x="4"  y="56" width="12" height="3"  rx="1" fill="#DBEAFE" />
-                        <rect x="27" y="8"  width="44" height="4"  rx="1" fill="#CBD5E1" />
-                        <rect x="27" y="16" width="44" height="3"  rx="1" fill="#E2E8F0" />
-                        <rect x="27" y="22" width="36" height="3"  rx="1" fill="#E2E8F0" />
-                        <rect x="27" y="30" width="44" height="4"  rx="1" fill="#CBD5E1" />
-                        <rect x="27" y="38" width="44" height="3"  rx="1" fill="#E2E8F0" />
-                        <rect x="27" y="44" width="38" height="3"  rx="1" fill="#E2E8F0" />
-                        <rect x="27" y="50" width="44" height="3"  rx="1" fill="#E2E8F0" />
-                        <rect x="27" y="58" width="44" height="4"  rx="1" fill="#CBD5E1" />
-                        <rect x="27" y="66" width="40" height="3"  rx="1" fill="#E2E8F0" />
-                        <rect x="27" y="72" width="44" height="3"  rx="1" fill="#E2E8F0" />
+                        <rect x="1" y="1" width="76" height="88" rx="5" fill="#FFFFFF" stroke={selectedTemplate === 2 ? "#028FF4" : "#D0D8E4"} strokeWidth={selectedTemplate === 2 ? 2 : 1} />
+                        {/* Accent header bar */}
+                        <rect x="1" y="1" width="76" height="22" rx="5" fill={selectedTemplate === 2 ? "#028FF4" : "#5BA4CF"} />
+                        <rect x="1" y="14" width="76" height="9"  fill={selectedTemplate === 2 ? "#028FF4" : "#5BA4CF"} />
+                        {/* Name in header */}
+                        <rect x="8" y="7"  width="36" height="5" rx="1.5" fill="rgba(255,255,255,0.9)" />
+                        {/* Contact in header */}
+                        <rect x="8" y="15" width="18" height="2.5" rx="1" fill="rgba(255,255,255,0.55)" />
+                        <rect x="29" y="15" width="18" height="2.5" rx="1" fill="rgba(255,255,255,0.55)" />
+                        {/* Section rows with left accent stripe */}
+                        <rect x="8"  y="27" width="3"  height="4"  rx="1" fill={selectedTemplate === 2 ? "#028FF4" : "#5BA4CF"} />
+                        <rect x="13" y="28" width="20" height="2.5" rx="1" fill="#C4C4C4" />
+                        <rect x="8"  y="34" width="62" height="2"  rx="1" fill="#EBEBEB" />
+                        <rect x="8"  y="38" width="62" height="2"  rx="1" fill="#E8E8E8" />
+                        <rect x="8"  y="43" width="50" height="2"  rx="1" fill="#E8E8E8" />
+                        <rect x="8"  y="50" width="3"  height="4"  rx="1" fill={selectedTemplate === 2 ? "#028FF4" : "#5BA4CF"} />
+                        <rect x="13" y="51" width="24" height="2.5" rx="1" fill="#C4C4C4" />
+                        <rect x="8"  y="57" width="62" height="2"  rx="1" fill="#EBEBEB" />
+                        <rect x="8"  y="61" width="62" height="2"  rx="1" fill="#E8E8E8" />
+                        <rect x="8"  y="65" width="54" height="2"  rx="1" fill="#E8E8E8" />
+                        <rect x="8"  y="72" width="3"  height="4"  rx="1" fill={selectedTemplate === 2 ? "#028FF4" : "#5BA4CF"} />
+                        <rect x="13" y="73" width="16" height="2.5" rx="1" fill="#C4C4C4" />
+                        <rect x="8"  y="79" width="62" height="2"  rx="1" fill="#E8E8E8" />
                       </svg>,
                     ].map((thumb, i) => (
                       <div
@@ -1350,7 +1412,7 @@ export default function BuilderPage() {
 
                 {/* ── Job Description tab ── */}
                 {activeLeftTab === "jd" && (
-                  <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
+                  <div style={{ padding: isMobile ? "16px 16px 140px" : "16px", display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
                     <p style={{ fontSize: "12px", color: "#B8B8B8", lineHeight: "160%", letterSpacing: "-0.02em", margin: 0 }}>
                       Paste a job description to see how well your resume matches and get keyword suggestions.
                     </p>
@@ -1414,7 +1476,7 @@ export default function BuilderPage() {
 
                 {/* ── Optimization tab ── */}
                 {activeLeftTab === "optimization" && (
-                  <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div style={{ padding: isMobile ? "16px 16px 140px" : "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
 
                     {/* Loading */}
                     {analyzing && (
@@ -1450,7 +1512,7 @@ export default function BuilderPage() {
                               <Loader2 size={10} color="#C4C4C4" style={{ animation: "spin 1s linear infinite", flexShrink: 0 }} />
                             )}
                           </div>
-                          <ArcGauge score={analysisResult.ats_score} />
+                          <ArcGauge score={displayScore} />
                         </div>
 
                         <div style={{ height: "1px", backgroundColor: t.border }} />
@@ -1538,7 +1600,7 @@ export default function BuilderPage() {
                               </div>
 
                               {/* Variant text */}
-                              <p style={{ fontSize: "12px", color: "#4A4A4A", lineHeight: "160%", letterSpacing: "-0.02em", margin: 0, backgroundColor: "#F4F4F6", borderRadius: "10px", padding: "10px 12px" }}>
+                              <p style={{ fontSize: "12px", fontWeight: 500, color: "#4A4A4A", lineHeight: "160%", letterSpacing: "-0.02em", margin: 0, backgroundColor: "#F4F4F6", borderRadius: "10px", padding: "10px 12px" }}>
                                 {summaryVariants[variantIndex]}
                               </p>
 
@@ -1648,16 +1710,69 @@ export default function BuilderPage() {
                                       gap: "6px",
                                     }}
                                   >
-                                    <span style={{ fontSize: "12px", fontWeight: 500, color: "#F70407", fontFamily: "inherit" }}>
-                                      {aw.current}
+                                    <span style={{ fontSize: "12px", fontWeight: 500, color: actionWordsApplied ? "#01B747" : "#F70407", fontFamily: "inherit", textDecoration: actionWordsApplied ? "none" : undefined }}>
+                                      {actionWordsApplied ? aw.suggested : aw.current}
                                     </span>
-                                    <span style={{ fontSize: "11px", color: "#C4C4C4" }}>→</span>
-                                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#01B747", fontFamily: "inherit" }}>
-                                      {aw.suggested}
-                                    </span>
+                                    {!actionWordsApplied && (
+                                      <>
+                                        <span style={{ fontSize: "11px", color: "#C4C4C4" }}>→</span>
+                                        <span style={{ fontSize: "12px", fontWeight: 600, color: "#01B747", fontFamily: "inherit" }}>
+                                          {aw.suggested}
+                                        </span>
+                                      </>
+                                    )}
                                   </div>
                                 ))}
                               </div>
+                              {actionWordsApplied ? (
+                                <button
+                                  onClick={handleUndoActionWords}
+                                  style={{
+                                    width: "100%",
+                                    height: "36px",
+                                    borderRadius: "9999px",
+                                    border: "1.5px solid #E0E0E0",
+                                    backgroundColor: "transparent",
+                                    color: "#767678",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    letterSpacing: "-0.02em",
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "6px",
+                                  }}
+                                >
+                                  <RotateCcw size={12} />
+                                  Undo
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={handleApplyActionWords}
+                                  style={{
+                                    width: "100%",
+                                    height: "36px",
+                                    borderRadius: "9999px",
+                                    border: "none",
+                                    backgroundColor: "#028FF4",
+                                    color: "#FFFFFF",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    letterSpacing: "-0.02em",
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "6px",
+                                  }}
+                                >
+                                  <Sparkles size={12} />
+                                  Improve Action Words
+                                </button>
+                              )}
                             </div>
                           </>
                         )}
@@ -1702,7 +1817,7 @@ export default function BuilderPage() {
                 <span style={{ fontSize: "13px", color: "#727272", fontWeight: 500, fontFamily: "var(--font-geist-sans), system-ui, sans-serif", letterSpacing: "-0.02em" }}>Importing resume…</span>
               </div>
             )}
-            <div style={isMobile ? { zoom: 1.15 } : undefined}>
+            <div>
               <ResumePreview resume={resume} template={selectedTemplate} accentColor={selectedColor} sectionOrder={sectionOrder} highlightKeywords={appliedKeywords} onUpload={handleImportResume} />
             </div>
           </div>

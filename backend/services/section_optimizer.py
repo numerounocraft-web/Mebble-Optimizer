@@ -406,6 +406,85 @@ def _inject_into_summary(text: str, keywords: list) -> tuple:
 # Main optimizer class
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# ── Variant opener templates ──────────────────────────────────────────────────
+# Each variant leads with a genuinely different angle so the three outputs read
+# as distinct rewrites rather than the same text with minor additions.
+
+_IMPACT_OPENERS = {
+    'software_engineering': (
+        "An engineer who delivers clean, scalable software that moves products forward."
+    ),
+    'product_design': (
+        "A designer who translates user needs into intuitive, polished experiences that drive real engagement."
+    ),
+    'data_analytics': (
+        "An analyst who turns complex datasets into clear, actionable insights that sharpen business strategy."
+    ),
+    'marketing': (
+        "A marketer who builds brand momentum through sharp creative instincts and data-backed decision-making."
+    ),
+    'finance_accounting': (
+        "A finance professional who converts financial complexity into clarity, enabling confident, informed decisions."
+    ),
+    'human_resources': (
+        "An HR professional who aligns people strategy with business outcomes to build high-performing teams."
+    ),
+    'general': (
+        "A high-impact professional who consistently delivers results by combining technical depth with clear, strategic thinking."
+    ),
+}
+
+_EXPERTISE_OPENERS = {
+    'software_engineering': (
+        "A software engineer with deep expertise across the full development lifecycle — from architecture and design through to deployment and ongoing optimisation."
+    ),
+    'product_design': (
+        "A product designer with proven expertise in end-to-end UX research, interaction design, and scalable design systems."
+    ),
+    'data_analytics': (
+        "A data professional with strong command of analytical methods, statistical modelling, and visualisation, translating raw data into strategic value."
+    ),
+    'marketing': (
+        "A marketing professional with expertise spanning campaign strategy, content development, and performance analytics across digital and traditional channels."
+    ),
+    'finance_accounting': (
+        "A finance professional with expertise in financial analysis, regulatory reporting, and strategic planning across complex, fast-moving organisations."
+    ),
+    'human_resources': (
+        "An HR professional with broad expertise in talent acquisition, employee development, and driving organisational effectiveness at scale."
+    ),
+    'general': (
+        "A versatile professional with broad expertise and a consistent record of delivering high-quality, impactful work across dynamic environments."
+    ),
+}
+
+# Forward-looking closers used only by the expertise variant so it reads
+# differently from the standard SUMMARY_CLOSERS used elsewhere.
+_EXPERTISE_CLOSERS = {
+    'software_engineering': (
+        "Currently seeking to apply this depth of expertise within a team that values craft, rigour, and continuous improvement."
+    ),
+    'product_design': (
+        "Eager to bring this experience to a product team that values thoughtful design as a core driver of business success."
+    ),
+    'data_analytics': (
+        "Looking to channel this analytical depth within a team that treats data as a strategic asset."
+    ),
+    'marketing': (
+        "Excited to bring this breadth of expertise to a growth-focused team that values both creativity and measurable results."
+    ),
+    'finance_accounting': (
+        "Seeking to contribute this financial expertise within an organisation that values precision, transparency, and strategic foresight."
+    ),
+    'human_resources': (
+        "Eager to apply this people-centred expertise within an organisation committed to meaningful, lasting talent development."
+    ),
+    'general': (
+        "Driven to contribute this expertise within a collaborative, high-standards environment where impact is clearly valued."
+    ),
+}
+
+
 class SectionOptimizer:
 
     def optimize_all(
@@ -475,83 +554,147 @@ class SectionOptimizer:
         text: str,
         missing_keywords: list,
         domain: str,
-        style: str = 'full',
+        style: str = 'impact',
     ) -> str:
         """
-        Rewrite the professional summary.
+        Rewrite the professional summary with three genuinely distinct angles.
 
-        style='full'    — verb upgrade + language refinement + inline keyword slot
-                          + bridge sentence + domain closer.
-        style='concise' — verb upgrade + language refinement + inline slot only
-                          (no bridge sentence) + domain closer.
-        style='refined' — verb upgrade + language refinement + domain closer only
-                          (no keyword injection — focuses purely on language quality).
+        style='impact'    — Replaces the opening sentence with a what-you-deliver
+                            framing, weaves keywords as tools/skills that enable
+                            that impact, ends with the standard domain closer.
+        style='expertise' — Replaces the opening sentence with a domain-expertise
+                            framing, injects keywords as named proficiencies, ends
+                            with a forward-looking closer distinct from 'impact'.
+        style='narrative' — Keeps the original sentence order; applies the deepest
+                            language polish, injects keywords inline, and appends
+                            the domain closer. No structural changes.
         """
-        enhanced = _strengthen_verbs(text)
-        enhanced = _refine_summary_language(enhanced)
+        base = _strengthen_verbs(text)
+        base = _refine_summary_language(base)
 
-        if style != 'refined':
-            relevant = [kw for kw in missing_keywords if kw.lower() not in enhanced.lower()][:5]
+        # Split into sentences for structural manipulation
+        sentences = re.split(r'(?<=[.!?])\s+', base.strip())
+        relevant = [kw for kw in missing_keywords if kw.lower() not in base.lower()][:5]
 
+        if style == 'impact':
+            opener = _IMPACT_OPENERS.get(domain, _IMPACT_OPENERS['general'])
+            # Keep all but the first original sentence (we replace the opener)
+            body_sentences = sentences[1:] if len(sentences) > 1 else []
+            body = ' '.join(body_sentences).strip()
+
+            # Inject keywords as a bridge after the opener
             if relevant:
-                # Inline injection into existing "skilled in / proficient in" phrases
-                enhanced, remaining = _inject_into_summary(enhanced, relevant)
+                kw_phrase = _build_keyword_phrase(relevant[:4])
+                bucket = _classify(relevant[0])
+                if bucket == 'tool':
+                    bridge = (
+                        f"Skilled in {kw_phrase}, applying these tools to deliver"
+                        f" polished, high-quality work at every stage of the process."
+                    )
+                elif bucket == 'metric':
+                    bridge = (
+                        f"Consistently delivers results that improve {kw_phrase},"
+                        f" grounded in a data-informed approach to every challenge."
+                    )
+                elif bucket == 'soft_skill':
+                    bridge = (
+                        f"Known for strong {kw_phrase}, building alignment and"
+                        f" momentum across teams and stakeholders."
+                    )
+                else:
+                    domain_kw_phrases = {
+                        'software_engineering': f"Brings hands-on experience with {kw_phrase}, applying these competencies across the full engineering lifecycle.",
+                        'product_design': f"Brings hands-on experience with {kw_phrase}, using these skills to craft cohesive, user-centred solutions.",
+                        'data_analytics': f"Versed in {kw_phrase}, translating this technical depth into clear, insight-driven outcomes.",
+                        'marketing': f"Experienced with {kw_phrase}, integrating these competencies into campaign strategy and brand execution.",
+                        'general': f"Proficient in {kw_phrase}, consistently applying these skills to deliver high-quality, impactful work.",
+                    }
+                    bridge = domain_kw_phrases.get(domain, domain_kw_phrases['general'])
 
-                # Bridge sentence — 'full' style only
-                if remaining and style == 'full':
-                    kw_phrase = _build_keyword_phrase(remaining[:3])
-                    bucket = _classify(remaining[0])
-                    if bucket == 'tool':
-                        bridge = (
-                            f"Proficient in {kw_phrase}, applying these tools to deliver"
-                            f" polished, high-quality work at every stage of the process."
-                        )
-                    elif bucket == 'metric':
-                        bridge = (
-                            f"Consistently delivers results that improve {kw_phrase},"
-                            f" driven by a data-informed approach to every challenge."
-                        )
-                    elif bucket == 'soft_skill':
-                        bridge = (
-                            f"Recognised for strong {kw_phrase}, fostering collaboration"
-                            f" and alignment across diverse teams and stakeholders."
-                        )
-                    else:
-                        domain_bridges = {
-                            'software_engineering': (
-                                f"Experienced in {kw_phrase}, applying these competencies"
-                                f" across the full engineering lifecycle."
-                            ),
-                            'product_design': (
-                                f"Skilled in {kw_phrase}, using these practices to craft"
-                                f" cohesive, user-centred design solutions."
-                            ),
-                            'data_analytics': (
-                                f"Versed in {kw_phrase}, translating technical depth into"
-                                f" clear, insight-driven outcomes."
-                            ),
-                            'marketing': (
-                                f"Experienced in {kw_phrase}, integrating these competencies"
-                                f" into campaign strategy and brand execution."
-                            ),
-                            'general': (
-                                f"Proficient in {kw_phrase}, consistently applying these"
-                                f" skills to deliver high-quality, impactful work."
-                            ),
-                        }
-                        bridge = domain_bridges.get(domain, domain_bridges['general'])
+                parts = [opener, bridge]
+                if body:
+                    parts.append(body)
+            else:
+                parts = [opener]
+                if body:
+                    parts.append(body)
 
-                    sentences = re.split(r'(?<=[.!?])\s+', enhanced.strip())
-                    if len(sentences) >= 2:
-                        sentences.insert(1, bridge)
-                        enhanced = ' '.join(sentences)
-                    else:
-                        enhanced = enhanced.rstrip('.') + f'. {bridge}'
+            enhanced = ' '.join(parts)
 
-        # Append domain-specific closing if summary is still short
-        closer = SUMMARY_CLOSERS.get(domain, SUMMARY_CLOSERS['general'])
-        if closer[:30].lower() not in enhanced.lower() and len(enhanced) < 600:
-            enhanced = enhanced.rstrip('.') + f'. {closer}'
+            # Standard domain closer
+            closer = SUMMARY_CLOSERS.get(domain, SUMMARY_CLOSERS['general'])
+            if closer[:30].lower() not in enhanced.lower() and len(enhanced) < 600:
+                enhanced = enhanced.rstrip('.') + f'. {closer}'
+
+        elif style == 'expertise':
+            opener = _EXPERTISE_OPENERS.get(domain, _EXPERTISE_OPENERS['general'])
+            # Keep mid-sentences (skip first; we replace with expertise opener)
+            body_sentences = sentences[1:] if len(sentences) > 1 else []
+            body = ' '.join(body_sentences).strip()
+
+            # Inject keywords as named proficiencies
+            if relevant:
+                kw_phrase = _build_keyword_phrase(relevant[:4])
+                bucket = _classify(relevant[0])
+                if bucket == 'tool':
+                    kw_sentence = (
+                        f"Proficient in {kw_phrase}, with a track record of applying"
+                        f" these tools to accelerate delivery and raise output quality."
+                    )
+                elif bucket == 'soft_skill':
+                    kw_sentence = (
+                        f"Recognised for {kw_phrase}, consistently fostering the"
+                        f" collaboration and clarity that high-performing teams depend on."
+                    )
+                elif bucket == 'metric':
+                    kw_sentence = (
+                        f"Focused on driving measurable improvements in {kw_phrase},"
+                        f" informed by rigorous analysis and a bias toward action."
+                    )
+                else:
+                    kw_sentence = (
+                        f"Demonstrating strong command of {kw_phrase}, applied"
+                        f" with precision across complex, high-stakes projects."
+                    )
+
+                parts = [opener, kw_sentence]
+                if body:
+                    parts.append(body)
+            else:
+                parts = [opener]
+                if body:
+                    parts.append(body)
+
+            enhanced = ' '.join(parts)
+
+            # Forward-looking closer — distinct from the standard one
+            expertise_closer = _EXPERTISE_CLOSERS.get(domain, _EXPERTISE_CLOSERS['general'])
+            if expertise_closer[:30].lower() not in enhanced.lower() and len(enhanced) < 600:
+                enhanced = enhanced.rstrip('.') + f'. {expertise_closer}'
+
+        else:  # 'narrative' — keep original structure, deepen language polish
+            enhanced, remaining = _inject_into_summary(base, relevant)
+
+            if remaining:
+                kw_phrase = _build_keyword_phrase(remaining[:3])
+                domain_bridges = {
+                    'software_engineering': f"Experienced in {kw_phrase}, applying these competencies across the full engineering lifecycle.",
+                    'product_design': f"Skilled in {kw_phrase}, using these practices to craft cohesive, user-centred design solutions.",
+                    'data_analytics': f"Versed in {kw_phrase}, translating technical depth into clear, insight-driven outcomes.",
+                    'marketing': f"Experienced in {kw_phrase}, integrating these competencies into campaign strategy and brand execution.",
+                    'general': f"Proficient in {kw_phrase}, consistently applying these skills to deliver high-quality, impactful work.",
+                }
+                bridge = domain_bridges.get(domain, domain_bridges['general'])
+                sents = re.split(r'(?<=[.!?])\s+', enhanced.strip())
+                if len(sents) >= 2:
+                    sents.insert(-1, bridge)
+                    enhanced = ' '.join(sents)
+                else:
+                    enhanced = enhanced.rstrip('.') + f'. {bridge}'
+
+            closer = SUMMARY_CLOSERS.get(domain, SUMMARY_CLOSERS['general'])
+            if closer[:30].lower() not in enhanced.lower() and len(enhanced) < 600:
+                enhanced = enhanced.rstrip('.') + f'. {closer}'
 
         return _qa(enhanced)
 

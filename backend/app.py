@@ -111,7 +111,7 @@ def optimize_summary_variants():
     variants = []
     seen = set()
 
-    for style in ('full', 'concise', 'refined'):
+    for style in ('impact', 'expertise', 'narrative'):
         try:
             v = section_optimizer._optimize_summary(summary, missing_keywords, domain, style=style)
             if v and v not in seen:

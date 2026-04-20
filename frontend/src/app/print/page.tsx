@@ -31,11 +31,27 @@ export default function PrintPage() {
     }
   }, []);
 
-  // Auto-trigger print once resume data is loaded and fonts have had time to settle
+  // Auto-trigger print once resume data is loaded and fonts have had time to settle.
+  // After the dialog is dismissed, close the tab. If the browser blocks window.close()
+  // (e.g. the tab was focused by the user before printing), redirect to the builder.
   useEffect(() => {
     if (!data) return;
-    const t = setTimeout(() => window.print(), 900);
-    return () => clearTimeout(t);
+
+    function handleAfterPrint() {
+      window.close();
+      // Fallback: if still open 300 ms later, navigate back to the builder
+      setTimeout(() => { window.location.replace("/builder"); }, 300);
+    }
+
+    const t = setTimeout(() => {
+      window.addEventListener("afterprint", handleAfterPrint, { once: true });
+      window.print();
+    }, 900);
+
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("afterprint", handleAfterPrint);
+    };
   }, [data]);
 
   if (missing) {
@@ -56,10 +72,26 @@ export default function PrintPage() {
       <style>{`
         *, *::before, *::after { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; background: #fff; }
-        @page { size: A4; margin: 0; }
+        /* Zero out every margin side explicitly — some mobile browsers ignore
+           the shorthand and still inject a URL footer unless each side is set. */
+        @page {
+          size: A4;
+          margin: 0;
+          margin-top: 0;
+          margin-right: 0;
+          margin-bottom: 0;
+          margin-left: 0;
+        }
         @media print {
           html, body { margin: 0; padding: 0; width: 210mm; }
           .resume-print-root { box-shadow: none !important; page-break-inside: avoid; }
+          /* Force backgrounds (colours, gradients) to print without requiring
+             the user to manually enable "Background graphics" in the dialog. */
+          *, *::before, *::after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
         }
         /* Screen: show the resume as a centered A4 card */
         @media screen {

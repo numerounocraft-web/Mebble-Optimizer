@@ -102,7 +102,7 @@ export default function AuthModal({ onClose, onSuccess, prompt }: AuthModalProps
       width: "100%",
       height: "42px",
       padding: "0 14px",
-      borderRadius: "10px",
+      borderRadius: "9999px",
       border: `1.5px solid ${hasError ? "#EF4444" : "#EBEBEB"}`,
       fontSize: "13px",
       fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
@@ -206,7 +206,7 @@ export default function AuthModal({ onClose, onSuccess, prompt }: AuthModalProps
               <button
                 onClick={() => switchTab("signin")}
                 style={{
-                  width: "100%", height: "42px", borderRadius: "10px", border: "none",
+                  width: "100%", height: "42px", borderRadius: "9999px", border: "none",
                   backgroundColor: "#028FF4", color: "#FFFFFF",
                   fontSize: "13px", fontWeight: 600, cursor: "pointer",
                   fontFamily: FONT, letterSpacing: "-0.02em",
@@ -329,7 +329,7 @@ export default function AuthModal({ onClose, onSuccess, prompt }: AuthModalProps
                   disabled={loading}
                   style={{
                     height: "42px",
-                    borderRadius: "10px",
+                    borderRadius: "9999px",
                     border: "none",
                     backgroundColor: loading ? "#C8E4FF" : "#028FF4",
                     color: "#FFFFFF",

@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Lock,
   Loader2,
   Sparkles,
   RotateCcw,
@@ -43,6 +42,7 @@ import {
   updateCloudResume,
 } from "@/lib/api";
 import AuthModal from "@/components/ui/AuthModal";
+import SavePromptModal from "@/components/ui/SavePromptModal";
 import UserMenu from "@/components/ui/UserMenu";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -299,6 +299,7 @@ export default function BuilderPage() {
   const [cloudResumeId,  setCloudResumeId]  = useState<string | null>(null);
   const [saveStatus,     setSaveStatus]     = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [showAuthModal,  setShowAuthModal]  = useState(false);
+  const [showSavePrompt, setShowSavePrompt] = useState(false);
   const [syncPrompt,     setSyncPrompt]     = useState<"none" | "ask">("none");
   const [pendingCloud,   setPendingCloud]   = useState<{ id: string; data: Resume } | null>(null);
   const hasSyncedRef = useRef(false);
@@ -328,6 +329,11 @@ export default function BuilderPage() {
   const previewRef     = useRef<HTMLDivElement>(null);
   const settingsIconRef = useRef<AnimatedAtomHandle>(null);
 
+  // ── Save-prompt auto-trigger refs ─────────────────────────────────────────
+  const savePromptShownRef  = useRef(false);
+  const savePromptTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevImportingRef    = useRef(false);
+
   function closeSettings() {
     setSettingsClosing(true);
     setTimeout(() => {
@@ -335,6 +341,49 @@ export default function BuilderPage() {
       setSettingsClosing(false);
     }, 180);
   }
+
+  // ── Save-prompt: schedule helper ─────────────────────────────────────────
+  function scheduleSavePrompt() {
+    if (savePromptShownRef.current || user || savePromptTimerRef.current) return;
+    savePromptTimerRef.current = setTimeout(() => {
+      if (!savePromptShownRef.current && !user) {
+        setShowSavePrompt(true);
+        savePromptShownRef.current = true;
+      }
+      savePromptTimerRef.current = null;
+    }, 3000);
+  }
+
+  // Trigger 1: 3 s after the user types their first character in any field
+  useEffect(() => {
+    if (user || savePromptShownRef.current) return;
+    const { personalInfo, summary, experience, education, skills } = resume;
+    const hasContent =
+      personalInfo.name || personalInfo.email || personalInfo.phone ||
+      personalInfo.location || summary ||
+      experience.length > 0 || education.length > 0 || skills.length > 0;
+    if (hasContent) scheduleSavePrompt();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resume, user]);
+
+  // Trigger 2: 3 s after a PDF import finishes loading
+  useEffect(() => {
+    if (!prevImportingRef.current && importingResume) {
+      prevImportingRef.current = true;
+    }
+    if (prevImportingRef.current && !importingResume) {
+      prevImportingRef.current = false;
+      scheduleSavePrompt();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [importingResume]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (savePromptTimerRef.current) clearTimeout(savePromptTimerRef.current);
+    };
+  }, []);
 
   // Apply LinkedIn prefill if arriving from the import flow
   useEffect(() => {
@@ -432,7 +481,7 @@ export default function BuilderPage() {
 
   // ── Manual first save (no cloudResumeId yet) ─────────────────────────────
   async function handleCloudSave() {
-    if (!accessToken) { setShowAuthModal(true); return; }
+    if (!accessToken) { setShowSavePrompt(true); return; }
     if (cloudResumeId) return; // auto-save handles it
     setSaveStatus("saving");
     try {
@@ -954,6 +1003,13 @@ export default function BuilderPage() {
     }
   }
 
+  // ── Whether the resume has any content (used for conditional UI) ─────────
+  const hasResumeContent = !!(
+    resume.personalInfo.name || resume.personalInfo.email || resume.personalInfo.phone ||
+    resume.personalInfo.location || resume.summary ||
+    resume.experience.length > 0 || resume.education.length > 0 || resume.skills.length > 0
+  );
+
   // ── Composite ATS display score ───────────────────────────────────────────
   // Keyword match contributes up to (100 - available bonuses) points so that
   // perfect keyword coverage alone cannot reach 100; each improvement adds its bonus.
@@ -1018,20 +1074,8 @@ export default function BuilderPage() {
         {/* Right: actions */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
 
-          {/* Cloud save / sign-in */}
-          {!user ? (
-            <button
-              onClick={() => setShowAuthModal(true)}
-              style={{
-                height: "34px", display: "flex", alignItems: "center", gap: "6px",
-                padding: "0 14px", borderRadius: "9999px", border: "1.5px solid #E8E8EA",
-                backgroundColor: "#FFFFFF", cursor: "pointer", fontFamily: "inherit",
-              }}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#028FF4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-              <span style={{ fontSize: "13px", fontWeight: 600, color: "#028FF4", letterSpacing: "-0.02em" }}>Save</span>
-            </button>
-          ) : saveStatus !== "idle" && (
+          {/* Cloud save status indicator (logged-in users only) */}
+          {user && saveStatus !== "idle" && (
             <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
               {saveStatus === "saving" && <Loader2 size={11} color="#AEAEB2" style={{ animation: "spin 1s linear infinite" }} />}
               {saveStatus === "saved"  && <Check size={11} color="#22C55E" />}
@@ -1369,7 +1413,9 @@ export default function BuilderPage() {
                   justifyContent: "center",
                 }}
               >
-                <Lock size={17} color="#C4C4C4" strokeWidth={1.8} />
+                <svg width="24" height="24" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22.5749 70.3547C20.8397 70.2917 19.1889 69.8415 17.6226 69.0041C16.0589 68.1692 14.5809 66.946 13.1886 65.3343C10.9085 62.744 9.13292 59.5585 7.86173 55.7777C6.58803 51.997 5.95117 48.0699 5.95117 43.9966C5.95117 39.2473 6.8352 34.7893 8.60326 30.6226C10.3713 26.456 12.8002 22.8278 15.8899 19.7381C18.9796 16.6484 22.5951 14.2082 26.7366 12.4175C30.878 10.6267 35.2994 9.73007 40.0008 9.72754C44.7021 9.72502 49.1235 10.6254 53.265 12.4288C57.4064 14.2322 61.0094 16.6711 64.0738 19.7457C67.1383 22.8202 69.5671 26.4396 71.3604 30.6037C73.1537 34.7679 74.0503 39.2094 74.0503 43.9285C74.0503 48.0068 73.3946 51.9276 72.083 55.6907C70.7715 59.4538 68.958 62.6898 66.6427 65.3986C65.1697 67.0658 63.6614 68.308 62.1179 69.1252C60.5768 69.9423 58.9424 70.3509 57.2147 70.3509C56.3219 70.3509 55.4542 70.245 54.6118 70.0331C53.7669 69.8238 52.9219 69.5085 52.077 69.0873L46.7804 66.439C45.7337 65.9144 44.6277 65.5209 43.4625 65.2586C42.2947 64.9963 41.1168 64.8652 39.9289 64.8652C38.693 64.8652 37.5038 64.9963 36.3612 65.2586C35.2187 65.5209 34.1468 65.9144 33.1454 66.439L27.9245 69.0873C27.0165 69.5716 26.1375 69.9184 25.2876 70.1277C24.4351 70.3396 23.5308 70.4178 22.5749 70.3547ZM44.0337 47.8063C45.1284 46.7142 45.6757 45.3699 45.6757 43.7733C45.6757 43.2185 45.5925 42.6775 45.426 42.1503C45.257 41.6207 45.03 41.1288 44.745 40.6748L51.729 31.6479C52.7126 32.5811 53.5588 33.59 54.2675 34.6745C54.9763 35.7591 55.5122 36.9256 55.8754 38.1741C56.0469 38.6508 56.3017 39.0606 56.6397 39.4037C56.9802 39.7492 57.3875 39.922 57.8617 39.922C58.5427 39.922 59.0509 39.637 59.3863 39.0669C59.7243 38.4969 59.7836 37.8651 59.5641 37.1715C58.1568 32.9367 55.6598 29.5116 52.0732 26.8961C48.4816 24.2781 44.4575 22.9691 40.0008 22.9691C35.5289 22.9691 31.4896 24.2781 27.8829 26.8961C24.2762 29.5116 21.7704 32.9367 20.3655 37.1715C20.1461 37.8651 20.2167 38.4957 20.5774 39.0632C20.938 39.6306 21.4349 39.9169 22.068 39.922C22.5421 39.922 22.9369 39.7492 23.2521 39.4037C23.5674 39.0581 23.8108 38.6483 23.9823 38.1741C25.1072 34.7363 27.1426 31.9733 30.0885 29.8849C33.0345 27.7965 36.3385 26.7523 40.0008 26.7523C41.5443 26.7523 43.0589 26.9793 44.5445 27.4333C46.0301 27.8873 47.4337 28.5242 48.7553 29.3439L41.7486 38.4162C41.4762 38.3178 41.1849 38.2409 40.8747 38.1854C40.5645 38.1299 40.2732 38.1022 40.0008 38.1022C38.4042 38.1022 37.0599 38.6495 35.9678 39.7441C34.8731 40.8363 34.3258 42.1806 34.3258 43.7771C34.3258 45.3737 34.8731 46.718 35.9678 47.8101C37.0624 48.9022 38.4067 49.4495 40.0008 49.4521C41.5948 49.4546 42.9391 48.9073 44.0337 47.8101" fill="#C4C4C4"/>
+                </svg>
               </div>
               <p style={{ fontSize: "12px", color: "#C0C0C0", lineHeight: "160%", letterSpacing: "-0.02em", fontWeight: 500, margin: 0 }}>
                 Fill in your resume details to unlock AI optimization
@@ -1798,6 +1844,52 @@ export default function BuilderPage() {
             backgroundColor: t.bg,
           }}
         >
+          {/* ── Upload button above preview — only when canvas already has content ── */}
+          {hasResumeContent && <div style={{
+            width: "100%",
+            maxWidth: isMobile ? "none" : "657px",
+            marginBottom: "10px",
+            flexShrink: 0,
+          }}>
+            <label style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "7px",
+              height: "36px",
+              padding: "0 16px",
+              borderRadius: "9999px",
+              border: "1.5px solid #E4E4E7",
+              backgroundColor: "#FFFFFF",
+              cursor: importingResume ? "default" : "pointer",
+              opacity: importingResume ? 0.6 : 1,
+              fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+              transition: "border-color 0.15s, background-color 0.15s",
+            }}
+              onMouseEnter={(e) => { if (!importingResume) { (e.currentTarget as HTMLElement).style.borderColor = "#028FF4"; (e.currentTarget as HTMLElement).style.backgroundColor = "#F0F8FF"; } }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#E4E4E7"; (e.currentTarget as HTMLElement).style.backgroundColor = "#FFFFFF"; }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#028FF4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <span style={{ fontSize: "12px", fontWeight: 600, color: "#028FF4", letterSpacing: "-0.02em" }}>
+                {importingResume ? "Uploading…" : "Upload resume"}
+              </span>
+              <input
+                type="file"
+                accept=".pdf"
+                style={{ display: "none" }}
+                disabled={importingResume}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImportResume(file);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </div>}
+
           <div
             ref={previewRef}
             style={{
@@ -1866,6 +1958,14 @@ export default function BuilderPage() {
           )}
         </div>
       </div>
+
+      {/* ── Save prompt (unauthenticated) ─────────────────────────────────── */}
+      {showSavePrompt && (
+        <SavePromptModal
+          onClose={() => setShowSavePrompt(false)}
+          onCreateAccount={() => { setShowSavePrompt(false); setShowAuthModal(true); }}
+        />
+      )}
 
       {/* ── Auth modal ─────────────────────────────────────────────────────── */}
       {showAuthModal && (

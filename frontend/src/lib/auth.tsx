@@ -21,6 +21,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   logout: () => void;
   deleteAccount: () => Promise<void>;
   authFetch: (url: string, options?: RequestInit) => Promise<Response>;
@@ -70,6 +71,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw new Error(error.message);
   };
 
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/builder`,
+    });
+    if (error) throw new Error(error.message);
+  };
+
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
   }, []);
@@ -109,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [logout]);
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, loading, login, register, logout, deleteAccount, authFetch }}>
+    <AuthContext.Provider value={{ user, accessToken, loading, login, register, resetPassword, logout, deleteAccount, authFetch }}>
       {children}
     </AuthContext.Provider>
   );

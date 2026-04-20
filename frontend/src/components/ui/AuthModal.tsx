@@ -80,20 +80,43 @@ function validateForm(
 }
 
 export default function AuthModal({ onClose, onSuccess, prompt }: AuthModalProps) {
-  const { login, register } = useAuth();
+  const { login, register, resetPassword } = useAuth();
 
   const [tab,          setTab]          = useState<"signin" | "signup">("signin");
+  const [screen,       setScreen]       = useState<"auth" | "forgot" | "forgot-sent">("auth");
   const [email,        setEmail]        = useState("");
   const [password,     setPassword]     = useState("");
   const [confirm,      setConfirm]      = useState("");
   const [loading,      setLoading]      = useState(false);
   const [fieldError,   setFieldError]   = useState<FieldError | null>(null);
   const [emailSent,    setEmailSent]    = useState(false);
+  const [resetEmail,   setResetEmail]   = useState("");
+  const [resetError,   setResetError]   = useState<string | null>(null);
 
   function switchTab(t: "signin" | "signup") {
     setTab(t);
     setFieldError(null);
     setEmailSent(false);
+    setScreen("auth");
+  }
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setResetError(null);
+    if (!resetEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail.trim())) {
+      setResetError("Please enter a valid email address.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await resetPassword(resetEmail.trim());
+      setScreen("forgot-sent");
+    } catch (err: unknown) {
+      const raw = err instanceof Error ? err.message : "Something went wrong.";
+      setResetError(mapError(raw, "signin").message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function inputStyle(field: "email" | "password" | "confirm"): React.CSSProperties {
@@ -185,6 +208,95 @@ export default function AuthModal({ onClose, onSuccess, prompt }: AuthModalProps
             )}
           </div>
 
+          {/* ── Forgot password screen ── */}
+          {screen === "forgot" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1F1F1F", letterSpacing: "-0.03em", fontFamily: FONT }}>
+                  Reset your password
+                </p>
+                <p style={{ margin: 0, fontSize: "13px", color: "#9A9A9C", fontWeight: 500, letterSpacing: "-0.01em", lineHeight: "155%", fontFamily: FONT }}>
+                  Enter your email and we&apos;ll send you a link to reset your password.
+                </p>
+              </div>
+              <form onSubmit={handleForgotPassword} style={{ display: "flex", flexDirection: "column", gap: "10px" }} noValidate>
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  value={resetEmail}
+                  onChange={(e) => { setResetEmail(e.target.value); setResetError(null); }}
+                  style={{
+                    width: "100%", height: "42px", padding: "0 14px",
+                    borderRadius: "9999px",
+                    border: `1.5px solid ${resetError ? "#EF4444" : "#EBEBEB"}`,
+                    fontSize: "13px", fontFamily: FONT, color: "#1F1F1F",
+                    backgroundColor: resetError ? "#FFF8F8" : "#FAFAFA",
+                    outline: "none", boxSizing: "border-box" as const,
+                    letterSpacing: "-0.01em",
+                  }}
+                  onFocus={(e) => { if (!resetError) { e.target.style.borderColor = "#028FF4"; e.target.style.backgroundColor = "#fff"; } }}
+                  onBlur={(e)  => { if (!resetError) { e.target.style.borderColor = "#EBEBEB"; e.target.style.backgroundColor = "#FAFAFA"; } }}
+                />
+                {resetError && (
+                  <p style={{ margin: 0, fontSize: "11px", color: "#EF4444", fontWeight: 500, letterSpacing: "-0.01em", fontFamily: FONT }}>
+                    {resetError}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    height: "42px", borderRadius: "9999px", border: "none",
+                    backgroundColor: loading ? "#C8E4FF" : "#028FF4", color: "#FFFFFF",
+                    fontSize: "13px", fontWeight: 600, cursor: loading ? "default" : "pointer",
+                    fontFamily: FONT, letterSpacing: "-0.02em", transition: "background-color 0.15s",
+                  }}
+                >
+                  {loading ? "Sending…" : "Send reset link"}
+                </button>
+              </form>
+              <p style={{ margin: 0, fontSize: "11px", color: "#AEAEB2", textAlign: "center", letterSpacing: "-0.01em", fontFamily: FONT }}>
+                <button
+                  onClick={() => { setScreen("auth"); setResetError(null); setResetEmail(""); }}
+                  style={{ background: "none", border: "none", color: "#028FF4", fontWeight: 600, cursor: "pointer", fontFamily: FONT, fontSize: "11px", padding: 0 }}
+                >
+                  ← Back to Sign In
+                </button>
+              </p>
+            </div>
+
+          ) : screen === "forgot-sent" ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "8px 0 4px" }}>
+              <div style={{ width: "48px", height: "48px", borderRadius: "14px", backgroundColor: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Mail size={22} color="#028FF4" strokeWidth={1.8} />
+              </div>
+              <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "6px" }}>
+                <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1F1F1F", letterSpacing: "-0.03em", fontFamily: FONT }}>
+                  Check your email
+                </p>
+                <p style={{ margin: 0, fontSize: "13px", color: "#9A9A9C", fontWeight: 500, letterSpacing: "-0.01em", lineHeight: "155%", fontFamily: FONT }}>
+                  We sent a password reset link to<br />
+                  <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{resetEmail}</span>
+                </p>
+                <p style={{ margin: 0, fontSize: "12px", color: "#B0B0B0", fontWeight: 500, letterSpacing: "-0.01em", lineHeight: "155%", fontFamily: FONT }}>
+                  Click the link in the email to set a new password.
+                </p>
+              </div>
+              <button
+                onClick={() => { setScreen("auth"); setResetEmail(""); setResetError(null); }}
+                style={{
+                  width: "100%", height: "42px", borderRadius: "9999px", border: "none",
+                  backgroundColor: "#028FF4", color: "#FFFFFF",
+                  fontSize: "13px", fontWeight: 600, cursor: "pointer",
+                  fontFamily: FONT, letterSpacing: "-0.02em",
+                }}
+              >
+                Back to Sign In
+              </button>
+            </div>
+
+          ) : (
+          <>
           {/* ── Email sent confirmation screen ── */}
           {emailSent ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "8px 0 4px" }}>
@@ -349,18 +461,29 @@ export default function AuthModal({ onClose, onSuccess, prompt }: AuthModalProps
               </form>
 
               {tab === "signin" && (
-                <p style={{ margin: 0, fontSize: "11px", color: "#AEAEB2", textAlign: "center", letterSpacing: "-0.01em", fontFamily: FONT }}>
-                  No account?{" "}
-                  <button
-                    onClick={() => switchTab("signup")}
-                    style={{ background: "none", border: "none", color: "#028FF4", fontWeight: 600, cursor: "pointer", fontFamily: FONT, fontSize: "11px", padding: 0 }}
-                  >
-                    Create one free
-                  </button>
-                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "center" }}>
+                  <p style={{ margin: 0, fontSize: "11px", color: "#AEAEB2", textAlign: "center", letterSpacing: "-0.01em", fontFamily: FONT }}>
+                    <button
+                      onClick={() => { setScreen("forgot"); setResetEmail(email); setResetError(null); }}
+                      style={{ background: "none", border: "none", color: "#028FF4", fontWeight: 600, cursor: "pointer", fontFamily: FONT, fontSize: "11px", padding: 0 }}
+                    >
+                      Forgot password?
+                    </button>
+                  </p>
+                  <p style={{ margin: 0, fontSize: "11px", color: "#AEAEB2", textAlign: "center", letterSpacing: "-0.01em", fontFamily: FONT }}>
+                    No account?{" "}
+                    <button
+                      onClick={() => switchTab("signup")}
+                      style={{ background: "none", border: "none", color: "#028FF4", fontWeight: 600, cursor: "pointer", fontFamily: FONT, fontSize: "11px", padding: 0 }}
+                    >
+                      Create one free
+                    </button>
+                  </p>
+                </div>
               )}
             </>
           )}
+          </>)}
         </div>
       </div>
     </>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import MebbleSpinner from "@/components/ui/MebbleSpinner";
 import {
-  Loader2,
   Sparkles,
   RotateCcw,
   Plus,
@@ -303,9 +303,11 @@ export default function BuilderPage() {
   const [syncPrompt,     setSyncPrompt]     = useState<"none" | "ask">("none");
   const [pendingCloud,   setPendingCloud]   = useState<{ id: string; data: Resume } | null>(null);
   const hasSyncedRef = useRef(false);
+  const resumeRef    = useRef<Resume>(EMPTY_RESUME);
+  const [hydrated,   setHydrated]   = useState(false);
 
   // ── Hooks that must come before effects ──────────────────────────────────
-  const { user, accessToken, logout, needsPasswordReset } = useAuth();
+  const { user, accessToken, logout } = useAuth();
   const { width: windowWidth } = useWindowSize();
   const isMobile = windowWidth < 768;
   const isTablet = windowWidth >= 768 && windowWidth < 1100;
@@ -333,6 +335,7 @@ export default function BuilderPage() {
   const savePromptShownRef  = useRef(false);
   const savePromptTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevImportingRef    = useRef(false);
+  const userRef             = useRef(user);
 
   function closeSettings() {
     setSettingsClosing(true);
@@ -342,11 +345,14 @@ export default function BuilderPage() {
     }, 180);
   }
 
+  // Keep userRef current so setTimeout callbacks always see the latest value
+  useEffect(() => { userRef.current = user; }, [user]);
+
   // ── Save-prompt: schedule helper ─────────────────────────────────────────
   function scheduleSavePrompt() {
     if (savePromptShownRef.current || user || savePromptTimerRef.current) return;
     savePromptTimerRef.current = setTimeout(() => {
-      if (!savePromptShownRef.current && !user) {
+      if (!savePromptShownRef.current && !userRef.current) {
         setShowSavePrompt(true);
         savePromptShownRef.current = true;
       }
@@ -436,6 +442,35 @@ export default function BuilderPage() {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [exportOpen]);
 
+  // Keep resumeRef current so effects always read the latest resume value
+  useEffect(() => { resumeRef.current = resume; }, [resume]);
+
+  // ── Restore from localStorage on mount ──────────────────────────────────
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("mebble_builder_state");
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved.resume)        setResume(saved.resume);
+        if (saved.sectionOrder)  setSectionOrder(saved.sectionOrder);
+        if (typeof saved.selectedTemplate === "number") setSelectedTemplate(saved.selectedTemplate);
+        if (saved.selectedColor) setSelectedColor(saved.selectedColor);
+      }
+    } catch { /* ignore corrupt data */ }
+    setHydrated(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Persist to localStorage on every change (after hydration) ───────────
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem("mebble_builder_state", JSON.stringify({
+        resume, sectionOrder, selectedTemplate, selectedColor,
+      }));
+    } catch { /* quota exceeded — ignore */ }
+  }, [resume, sectionOrder, selectedTemplate, selectedColor, hydrated]);
+
   // ── On login: sync local ↔ cloud ────────────────────────────────────────
   useEffect(() => {
     if (!user || !accessToken) { hasSyncedRef.current = false; return; }
@@ -446,12 +481,19 @@ export default function BuilderPage() {
       try {
         const resumes = await listCloudResumes(accessToken);
         if (resumes.length > 0) {
-          const { data: cloudData } = await getCloudResume(resumes[0].id, accessToken);
+          const local = resumeRef.current;
+          const localIsEmpty =
+            !local.personalInfo.name && !local.personalInfo.email &&
+            local.experience.length === 0 && local.education.length === 0 && !local.summary;
           setCloudResumeId(resumes[0].id);
-          setPendingCloud({ id: resumes[0].id, data: cloudData });
-          setSyncPrompt("ask");
+          if (localIsEmpty) {
+            const { data: cloudData } = await getCloudResume(resumes[0].id, accessToken);
+            setResume(cloudData);
+            setSaveStatus("saved");
+            setTimeout(() => setSaveStatus("idle"), 2000);
+          }
         } else {
-          const created = await createCloudResume(resume, accessToken);
+          const created = await createCloudResume(resumeRef.current, accessToken);
           setCloudResumeId(created.id);
           setSaveStatus("saved");
           setTimeout(() => setSaveStatus("idle"), 2000);
@@ -481,7 +523,8 @@ export default function BuilderPage() {
 
   // ── Manual first save (no cloudResumeId yet) ─────────────────────────────
   async function handleCloudSave() {
-    if (!accessToken) { setShowSavePrompt(true); return; }
+    if (!accessToken && !userRef.current) { setShowSavePrompt(true); return; }
+    if (!accessToken) return; // auth still loading, skip silently
     if (cloudResumeId) return; // auto-save handles it
     setSaveStatus("saving");
     try {
@@ -678,20 +721,32 @@ export default function BuilderPage() {
   }
 
   // ── Import PDF into builder ───────────────────────────────────────────────
+  function handleReset() {
+    setResume(EMPTY_RESUME);
+    setSectionOrder(DEFAULT_ORDER);
+    setOpenSection("personalInfo");
+    setAnalysisResult(null);
+    setAppliedKeywords([]);
+    setActionWordsApplied(false);
+    preOptimizeRef.current = null;
+    preActionWordsRef.current = null;
+    try { localStorage.removeItem("mebble_builder_state"); } catch { /* ignore */ }
+  }
+
   async function handleImportResume(file: File) {
     setImportingResume(true);
     try {
       const result = await importResumePDF(file);
       if (!result.success) return;
       const d = result.data;
-      setResume((prev) => ({
-        ...prev,
-        personalInfo: { ...prev.personalInfo, ...(d.personalInfo || {}) },
-        summary:    d.summary    || prev.summary,
-        experience: d.experience?.length ? d.experience.map((e: ExperienceEntry) => ({ ...newExperience(), ...e })) : prev.experience,
-        education:  d.education?.length  ? d.education.map((e: EducationEntry)   => ({ ...newEducation(),  ...e })) : prev.education,
-        skills:     d.skills?.length     ? d.skills                                                                  : prev.skills,
-      }));
+      setResume({
+        ...EMPTY_RESUME,
+        personalInfo: { ...EMPTY_RESUME.personalInfo, ...(d.personalInfo || {}) },
+        summary:    d.summary    || EMPTY_RESUME.summary,
+        experience: d.experience?.length ? d.experience.map((e: ExperienceEntry) => ({ ...newExperience(), ...e })) : EMPTY_RESUME.experience,
+        education:  d.education?.length  ? d.education.map((e: EducationEntry)   => ({ ...newEducation(),  ...e })) : EMPTY_RESUME.education,
+        skills:     d.skills?.length     ? d.skills                                                                  : EMPTY_RESUME.skills,
+      });
       setOpenSection("personalInfo");
     } catch {
       // silent — user can retry
@@ -1077,7 +1132,7 @@ export default function BuilderPage() {
           {/* Cloud save status indicator (logged-in users only) */}
           {user && saveStatus !== "idle" && (
             <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-              {saveStatus === "saving" && <Loader2 size={11} color="#AEAEB2" style={{ animation: "spin 1s linear infinite" }} />}
+              {saveStatus === "saving" && <MebbleSpinner size={11} />}
               {saveStatus === "saved"  && <Check size={11} color="#22C55E" />}
               <span style={{
                 fontSize: "11px", fontWeight: 500, letterSpacing: "-0.01em",
@@ -1117,16 +1172,16 @@ export default function BuilderPage() {
             {(settingsOpen || settingsClosing) && (
               <div
                 style={{
-                  position: "absolute",
-                  top: "calc(100% + 8px)",
-                  right: 0,
-                  width: "300px",
+                  position: isMobile ? "fixed" : "absolute",
+                  top: isMobile ? "64px" : "calc(100% + 8px)",
+                  right: isMobile ? "16px" : 0,
+                  width: isMobile ? `min(300px, calc(100vw - 32px))` : "300px",
                   backgroundColor: t.dropdownBg,
                   borderRadius: "16px",
                   border: "none",
                   padding: "20px",
                   boxShadow: t.dropdownShadow,
-                  zIndex: 200,
+                  zIndex: 300,
                   display: "flex",
                   flexDirection: "column",
                   gap: "20px",
@@ -1511,7 +1566,7 @@ export default function BuilderPage() {
                       >
                         {analyzing ? (
                           <>
-                            <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+                            <MebbleSpinner size={12} />
                             Analyzing…
                           </>
                         ) : "Analyze Resume"}
@@ -1527,7 +1582,7 @@ export default function BuilderPage() {
                     {/* Loading */}
                     {analyzing && (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", padding: "48px 0" }}>
-                        <Loader2 size={22} color="#028FF4" style={{ animation: "spin 1s linear infinite" }} />
+                        <MebbleSpinner size={22} />
                         <p style={{ fontSize: "12px", color: "#B8B8B8", margin: 0, letterSpacing: "-0.02em" }}>
                           Analyzing your resume…
                         </p>
@@ -1555,7 +1610,7 @@ export default function BuilderPage() {
                               ATS Score
                             </span>
                             {reanalyzing && (
-                              <Loader2 size={10} color="#C4C4C4" style={{ animation: "spin 1s linear infinite", flexShrink: 0 }} />
+                              <MebbleSpinner size={10} />
                             )}
                           </div>
                           <ArcGauge score={displayScore} />
@@ -1618,7 +1673,7 @@ export default function BuilderPage() {
                           >
                             {optimizingKeywords ? (
                               <>
-                                <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+                                <MebbleSpinner size={12} />
                                 Adding keywords…
                               </>
                             ) : (
@@ -1850,6 +1905,9 @@ export default function BuilderPage() {
             maxWidth: isMobile ? "none" : "657px",
             marginBottom: "10px",
             flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
           }}>
             <label style={{
               display: "inline-flex",
@@ -1888,6 +1946,30 @@ export default function BuilderPage() {
                 }}
               />
             </label>
+            <button
+              onClick={handleReset}
+              title="Clear resume"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "36px",
+                height: "36px",
+                borderRadius: "9999px",
+                border: "1.5px solid #E4E4E7",
+                backgroundColor: "#FFFFFF",
+                cursor: "pointer",
+                flexShrink: 0,
+                transition: "border-color 0.15s, background-color 0.15s",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#F70407"; (e.currentTarget as HTMLElement).style.backgroundColor = "#FFF5F5"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#E4E4E7"; (e.currentTarget as HTMLElement).style.backgroundColor = "#FFFFFF"; }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F70407" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+            </button>
           </div>}
 
           <div
@@ -1905,7 +1987,7 @@ export default function BuilderPage() {
           >
             {importingResume && (
               <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.85)", borderRadius: "inherit", gap: "10px", zIndex: 10 }}>
-                <Loader2 size={22} color="#028FF4" style={{ animation: "spin 1s linear infinite" }} />
+                <MebbleSpinner size={22} />
                 <span style={{ fontSize: "13px", color: "#727272", fontWeight: 500, fontFamily: "var(--font-geist-sans), system-ui, sans-serif", letterSpacing: "-0.02em" }}>Importing resume…</span>
               </div>
             )}
@@ -1968,12 +2050,11 @@ export default function BuilderPage() {
       )}
 
       {/* ── Auth modal ─────────────────────────────────────────────────────── */}
-      {(showAuthModal || needsPasswordReset) && (
+      {showAuthModal && (
         <AuthModal
           onClose={() => setShowAuthModal(false)}
           onSuccess={() => setShowAuthModal(false)}
-          prompt={needsPasswordReset ? undefined : "Save and sync your resume across devices"}
-          initialScreen={needsPasswordReset ? "set-password" : "auth"}
+          prompt="Save and sync your resume across devices"
         />
       )}
 
@@ -2073,7 +2154,7 @@ export default function BuilderPage() {
           >
             {analyzing ? (
               <>
-                <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
+                <MebbleSpinner size={13} />
                 Analyzing…
               </>
             ) : "Analyze Resume"}

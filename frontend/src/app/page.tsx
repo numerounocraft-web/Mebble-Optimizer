@@ -101,7 +101,7 @@ export default function HomePage() {
             </p>
 
             <p style={{ fontSize: "13px", lineHeight: "160%", color: "#767678", fontWeight: 500, letterSpacing: "-0.01em", margin: 0 }}>
-              Your next big role starts with a resume that speaks the language of recruiters. Mebble transforms your standard CV into a high-performance career asset.
+              Your next big role starts with a resume that speaks the language of recruiters. Mebble shows you how the system sees your resume.
             </p>
 
             <div style={{ display: "flex", flexDirection: "row", gap: "12px", alignItems: "stretch" }}>
